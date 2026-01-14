@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Performance Tracker Pro v3.0 | Corporate Analytics Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    .light-mode { background: #f8fafc !important; color: #1e293b !important; }
+    .light-mode .bg-slate-900 { background: #ffffff !important; }
+    .light-mode .bg-slate-800 { background: #f1f5f9 !important; }
+    .light-mode .bg-slate-950 { background: #f8fafc !important; }
+    .light-mode .border-slate-700, .light-mode .border-slate-800 { border-color: #e2e8f0 !important; }
+    .light-mode .text-gray-100, .light-mode .text-white { color: #1e293b !important; }
+    .light-mode .text-gray-400, .light-mode .text-gray-500 { color: #64748b !important; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+    .animate-scale-in { animation: scaleIn 0.2s ease-out forwards; }
+    .gradient-text { background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .gradient-gold { background: linear-gradient(135deg, #f59e0b, #eab308); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .cell-green { background: linear-gradient(135deg, #059669, #10b981); }
+    .cell-yellow { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .cell-red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .cell-holiday { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+    .modal-overlay { background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+    @media print { .no-print { display: none !important; } }
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  </style>
+</head>
+<body class="bg-slate-950 text-gray-100 min-h-screen">
+  <div id="app">
+
+    <!-- ==================== UPLOAD SCREEN ==================== -->
+    <div id="upload-screen" class="min-h-screen flex items-center justify-center p-4">
+      <div class="max-w-3xl w-full animate-fade-in">
+        <div class="text-center mb-8">
+          <h1 class="text-4xl md:text-5xl font-bold gradient-text mb-3">Performance Tracker Pro</h1>
+          <p class="text-gray-400 text-lg">Corporate Employee Performance & Incentive Analytics v3.0</p>
+        </div>
+        
+        <!-- Report Type Selection -->
+        <div class="flex justify-center gap-4 mb-6">
+          <button id="mtd-mode-btn" class="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-sm font-medium transition-all">📊 MTD Report</button>
+          <button id="ytd-mode-btn" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium transition-all">📈 YTD Report</button>
+        </div>
+        
+        <!-- MTD Upload -->
+        <div id="mtd-upload-zone" class="bg-slate-900 border-2 border-dashed border-slate-700 rounded-2xl p-12 text-center cursor-pointer hover:border-cyan-500 hover:bg-cyan-500/5 transition-all">
+          <div class="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center mb-4">
+            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          </div>
+          <h3 class="text-xl font-semibold text-white mb-2">Drop Excel File Here</h3>
+          <p class="text-gray-400">or click to browse (Single month)</p>
+          <input type="file" id="file-input" accept=".xls,.xlsx" class="hidden">
+        </div>
+        
+        <!-- YTD Upload -->
+        <div id="ytd-upload-zone" class="hidden bg-slate-900 border-2 border-dashed border-slate-700 rounded-2xl p-12 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all">
+          <div class="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mb-4">
+            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          </div>
+          <h3 class="text-xl font-semibold text-white mb-2">Drop Multiple Excel Files</h3>
+          <p class="text-gray-400">Select all months (up to 12 files)</p>
+          <input type="file" id="ytd-file-input" accept=".xls,.xlsx" multiple class="hidden">
+          <div id="ytd-files-list" class="hidden mt-4 text-left bg-slate-800 rounded-lg p-4 max-h-40 overflow-y-auto"></div>
+          <button id="process-ytd-btn" class="hidden mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-medium">📊 Process YTD</button>
+        </div>
+        
+        <!-- Settings Buttons -->
+        <div class="mt-6 grid grid-cols-2 md:grid-cols-5 gap-3">
+          <button id="manage-holidays-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">📅 Holidays</button>
+          <button id="manage-joiners-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">🆕 Joiners</button>
+          <button id="manage-resigned-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">🚪 Resigned</button>
+          <button id="manage-scheme-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">💰 Incentive</button>
+          <button id="settings-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">⚙️ Settings</button>
+        </div>
+        
+        <div class="mt-8 grid grid-cols-4 gap-4 text-center">
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-4"><div class="text-2xl mb-2">📊</div><div class="text-xs text-gray-400">Point System</div></div>
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-4"><div class="text-2xl mb-2">💰</div><div class="text-xs text-gray-400">Auto Incentive</div></div>
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-4"><div class="text-2xl mb-2">🎁</div><div class="text-xs text-gray-400">Holiday Pay</div></div>
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-4"><div class="text-2xl mb-2">📈</div><div class="text-xs text-gray-400">YTD Reports</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== DASHBOARD ==================== -->
+    <div id="dashboard" class="hidden">
+      <!-- Header -->
+      <header class="bg-slate-900/95 border-b border-slate-800 sticky top-0 z-40 no-print">
+        <div class="max-w-[1920px] mx-auto px-4 py-3">
+          <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-3">
+            <div class="flex items-center gap-3 flex-wrap">
+              <h1 class="text-xl font-bold gradient-text">Performance Tracker Pro</h1>
+              <span id="report-type-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-cyan-900/50 text-cyan-400">MTD</span>
+              <span id="report-date-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-gray-300"></span>
+              <span id="working-days-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-900/50 text-emerald-400"></span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button id="pdf-with-incentive-btn" class="px-3 py-1.5 rounded bg-red-600 hover:bg-red-500 text-xs font-medium">📄 PDF+₹</button>
+              <button id="pdf-without-incentive-btn" class="px-3 py-1.5 rounded bg-red-800 hover:bg-red-700 text-xs font-medium">📄 PDF</button>
+              <button id="download-excel-btn" class="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-sm font-medium">📊 Excel</button>
+              <button id="manage-holidays-btn" class="px-3 py-2 rounded-lg hover:bg-slate-800 border border-slate-700 text-sm">📅</button>
+              <button id="manage-joiners-btn" class="px-3 py-2 rounded-lg hover:bg-slate-800 border border-slate-700 text-sm">🆕</button>
+              <button id="manage-resigned-btn" class="px-3 py-2 rounded-lg hover:bg-slate-800 border border-slate-700 text-sm">🚪</button>
+              <button id="manage-scheme-btn" class="px-3 py-2 rounded-lg hover:bg-slate-800 border border-slate-700 text-sm">💰</button>
+              <button id="settings-btn" class="px-3 py-2 rounded-lg hover:bg-slate-800 border border-slate-700 text-sm">⚙️</button>
+              <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-800 border border-slate-700">☀️</button>
+              <button id="fullscreen-toggle" class="p-2 rounded-lg hover:bg-slate-800 border border-slate-700">⛶</button>
+              <button id="print-btn" class="p-2 rounded-lg hover:bg-slate-800 border border-slate-700">🖨️</button>
+              <button id="new-upload-btn" class="p-2 rounded-lg hover:bg-slate-800 border border-slate-700">📤</button>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="relative">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input type="text" id="search-input" placeholder="Search..." class="bg-slate-800 border border-slate-700 text-gray-100 pl-10 pr-4 py-2 rounded-lg text-sm w-40 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            </div>
+            <select id="filter-select" class="bg-slate-800 border border-slate-700 text-gray-100 px-3 py-2 rounded-lg text-sm">
+              <option value="all">All Status</option>
+              <option value="ontrack">✅ On Track</option>
+              <option value="atrisk">⚠️ At Risk</option>
+              <option value="critical">🔴 Critical</option>
+              <option value="star">⭐ Stars</option>
+              <option value="incentive">💰 Earning</option>
+              <option value="newjoiners">🆕 Joiners</option>
+              <option value="resigned">🚪 Resigned</option>
+            </select>
+            <select id="sort-select" class="bg-slate-800 border border-slate-700 text-gray-100 px-3 py-2 rounded-lg text-sm">
+              <option value="name-asc">Name (A-Z)</option>
+              <option value="name-desc">Name (Z-A)</option>
+              <option value="achievement-desc">Achievement (High→Low)</option>
+              <option value="achievement-asc">Achievement (Low→High)</option>
+              <option value="output-desc">Output (High→Low)</option>
+              <option value="shortfall-desc">Shortfall (High→Low)</option>
+              <option value="incentive-desc">Earnings (High→Low)</option>
+            </select>
+            <div class="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1">
+              <span class="text-xs text-gray-400">From:</span>
+              <input type="date" id="date-from" class="bg-transparent text-gray-100 text-sm focus:outline-none w-32">
+              <span class="text-xs text-gray-400">To:</span>
+              <input type="date" id="date-to" class="bg-transparent text-gray-100 text-sm focus:outline-none w-32">
+              <button id="apply-date-filter" class="px-2 py-1 bg-cyan-600 hover:bg-cyan-500 rounded text-xs font-medium">Apply</button>
+              <button id="clear-date-filter" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs font-medium">Clear</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="max-w-[1920px] mx-auto p-4 space-y-6">
+        <div id="summary-cards" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-3"></div>
+        <div class="grid lg:grid-cols-3 gap-4">
+          <div id="champion-card" class="bg-gradient-to-br from-amber-900/30 to-yellow-900/20 border border-slate-800 rounded-xl p-6"></div>
+          <div id="leaderboard-card" class="bg-slate-900 border border-slate-800 rounded-xl p-4 lg:col-span-2"></div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="flex flex-wrap items-center gap-4 justify-center text-sm">
+            <div class="flex items-center gap-2">
+              <span class="font-semibold text-xs">Points:</span>
+              <div class="flex items-center gap-1"><div class="w-4 h-4 rounded cell-green"></div><span class="text-xs">Incentive ✓</span></div>
+              <div class="flex items-center gap-1"><div class="w-4 h-4 rounded cell-yellow"></div><span class="text-xs">Close</span></div>
+              <div class="flex items-center gap-1"><div class="w-4 h-4 rounded cell-red"></div><span class="text-xs">No Incentive</span></div>
+            </div>
+            <div class="w-px h-6 bg-slate-700"></div>
+            <div class="flex items-center gap-1"><div class="w-4 h-4 rounded cell-holiday"></div><span class="text-xs">H = Holiday (Bonus)</span></div>
+            <div class="w-px h-6 bg-slate-700"></div>
+            <span class="text-emerald-400 text-xs">↑Up</span><span class="text-gray-400 text-xs">→Stable</span><span class="text-red-400 text-xs">↓Down</span>
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div class="overflow-x-auto"><table id="main-table" class="w-full text-sm"><thead id="table-header" class="bg-slate-800 sticky top-0"></thead><tbody id="table-body"></tbody></table></div>
+        </div>
+        <div id="footer-stats" class="grid md:grid-cols-3 gap-4"></div>
+        <div class="text-center text-gray-500 text-sm py-4 no-print">Performance Tracker Pro v3.0</div>
+      </main>
+    </div>
+
+    <!-- ==================== HOLIDAY MODAL ==================== -->
+    <div id="holiday-modal" class="fixed inset-0 z-50 hidden">
+      <div class="modal-overlay absolute inset-0" onclick="closeModal('holiday-modal')"></div>
+      <div class="relative z-10 flex items-center justify-center min-h-screen p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden animate-scale-in">
+          <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+            <div><h2 class="text-xl font-bold">📅 Holiday Manager</h2><p class="text-sm text-gray-400">Sundays auto-excluded</p></div>
+            <button onclick="closeModal('holiday-modal')" class="p-2 hover:bg-slate-800 rounded-lg">✕</button>
+          </div>
+          <div class="px-6 py-3 bg-slate-800/50 border-b border-slate-700 flex items-center gap-4">
+            <label class="text-sm text-gray-400">Year:</label>
+            <select id="holiday-year-select" class="bg-slate-800 border border-slate-600 px-3 py-1 rounded-lg text-sm">
+              <option value="2025">2025</option><option value="2026" selected>2026</option><option value="2027">2027</option>
+            </select>
+            <button id="clear-all-holidays-btn" class="px-3 py-1 bg-red-600/20 text-red-400 hover:bg-red-600/30 rounded-lg text-xs">Clear All</button>
+          </div>
+          <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/30">
+            <div class="flex flex-col sm:flex-row gap-3">
+              <div class="flex-1"><label class="block text-xs text-gray-400 mb-1">Date</label><input type="date" id="holiday-date" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+              <div class="flex-1"><label class="block text-xs text-gray-400 mb-1">Name</label><input type="text" id="holiday-name" placeholder="e.g., Republic Day" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+              <div class="flex items-end"><button id="add-holiday-btn" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm font-medium">➕ Add</button></div>
+            </div>
+          </div>
+          <div class="px-6 py-3 border-b border-slate-700 bg-slate-800/20">
+            <details class="text-sm"><summary class="cursor-pointer text-cyan-400">📥 Bulk Import</summary>
+              <textarea id="bulk-holiday-input" placeholder="2026-01-26, Republic Day" class="mt-3 w-full h-20 bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-xs"></textarea>
+              <button id="bulk-import-btn" class="mt-2 px-3 py-1 bg-cyan-600 rounded text-xs">Import</button>
+            </details>
+          </div>
+          <div class="px-6 py-4 overflow-y-auto max-h-[35vh]"><div id="holiday-list" class="space-y-2"></div></div>
+          <div class="px-6 py-4 border-t border-slate-700 bg-slate-800/50 flex justify-between items-center">
+            <div class="text-sm text-gray-400"><span id="holiday-count">0</span> holidays</div>
+            <button onclick="closeModal('holiday-modal')" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium">✅ Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== JOINER MODAL ==================== -->
+    <div id="joiner-modal" class="fixed inset-0 z-50 hidden">
+      <div class="modal-overlay absolute inset-0" onclick="closeModal('joiner-modal')"></div>
+      <div class="relative z-10 flex items-center justify-center min-h-screen p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden animate-scale-in">
+          <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+            <div><h2 class="text-xl font-bold">🆕 New Joiner Register</h2><p class="text-sm text-gray-400">Target from joining date</p></div>
+            <button onclick="closeModal('joiner-modal')" class="p-2 hover:bg-slate-800 rounded-lg">✕</button>
+          </div>
+          <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/30">
+            <div class="flex flex-col sm:flex-row gap-3">
+              <div class="flex-1"><label class="block text-xs text-gray-400 mb-1">Name</label><input type="text" id="joiner-name" placeholder="Swati Adhikari" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+              <div class="w-28"><label class="block text-xs text-gray-400 mb-1">ID</label><input type="text" id="joiner-id" placeholder="PR104" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+              <div class="w-36"><label class="block text-xs text-gray-400 mb-1">Joining Date</label><input type="date" id="joiner-date" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+              <div class="flex items-end"><button id="add-joiner-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium">➕ Add</button></div>
+            </div>
+          </div>
+          <div class="px-6 py-4 overflow-y-auto max-h-[40vh]"><div id="joiner-list" class="space-y-2"></div><p id="joiner-empty" class="text-gray-500 text-sm text-center py-8">No new joiners</p></div>
+          <div class="px-6 py-4 border-t border-slate-700 bg-slate-800/50 flex justify-between items-center">
+            <div class="text-sm text-gray-400"><span id="joiner-count">0</span> joiners</div>
+            <button onclick="closeModal('joiner-modal')" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium">✅ Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== RESIGNED MODAL ==================== -->
+    <div id="resigned-modal" class="fixed inset-0 z-50 hidden">
+      <div class="modal-overlay absolute inset-0" onclick="closeModal('resigned-modal')"></div>
+      <div class="relative z-10 flex items-center justify-center min-h-screen p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden animate-scale-in">
+          <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+            <div><h2 class="text-xl font-bold">🚪 Resigned Register</h2><p class="text-sm text-gray-400">Target till last working date</p></div>
+            <button onclick="closeModal('resigned-modal')" class="p-2 hover:bg-slate-800 rounded-lg">✕</button>
+          </div>
+          <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/30">
+            <div class="flex flex-col sm:flex-row gap-3">
+              <div class="flex-1"><label class="block text-xs text-gray-400 mb-1">Name</label><input type="text" id="resigned-name" placeholder="Neha Das" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+              <div class="w-28"><label class="block text-xs text-gray-400 mb-1">ID</label><input type="text" id="resigned-id" placeholder="PR045" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+              <div class="w-36"><label class="block text-xs text-gray-400 mb-1">Last Date</label><input type="date" id="resigned-date" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+              <div class="flex items-end"><button id="add-resigned-btn" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg text-sm font-medium">➕ Add</button></div>
+            </div>
+          </div>
+          <div class="px-6 py-4 overflow-y-auto max-h-[40vh]"><div id="resigned-list" class="space-y-2"></div><p id="resigned-empty" class="text-gray-500 text-sm text-center py-8">No resigned employees</p></div>
+          <div class="px-6 py-4 border-t border-slate-700 bg-slate-800/50 flex justify-between items-center">
+            <div class="text-sm text-gray-400"><span id="resigned-count">0</span> resigned</div>
+            <button onclick="closeModal('resigned-modal')" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium">✅ Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SCHEME MODAL ==================== -->
+    <div id="scheme-modal" class="fixed inset-0 z-50 hidden">
+      <div class="modal-overlay absolute inset-0" onclick="closeModal('scheme-modal')"></div>
+      <div class="relative z-10 flex items-center justify-center min-h-screen p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-scale-in">
+          <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+            <div><h2 class="text-xl font-bold">💰 Incentive Scheme Manager</h2><p class="text-sm text-gray-400">Configure points, slabs & holiday rates</p></div>
+            <button onclick="closeModal('scheme-modal')" class="p-2 hover:bg-slate-800 rounded-lg">✕</button>
+          </div>
+          <div class="overflow-y-auto max-h-[70vh]">
+            <div class="px-6 py-3 bg-slate-800/50 border-b border-slate-700 flex flex-wrap items-center gap-3">
+              <label class="text-sm text-gray-400">Scheme:</label>
+              <select id="scheme-selector" class="flex-1 bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></select>
+              <button id="new-scheme-btn" class="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-xs">➕ New</button>
+              <button id="delete-scheme-btn" class="px-3 py-2 bg-red-600/20 text-red-400 rounded-lg text-xs">🗑️</button>
+            </div>
+            <div class="p-6 space-y-6">
+              <div class="grid md:grid-cols-3 gap-4">
+                <div><label class="block text-xs text-gray-400 mb-1">Scheme Name</label><input type="text" id="scheme-name" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+                <div><label class="block text-xs text-gray-400 mb-1">Valid From</label><input type="date" id="scheme-from" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+                <div><label class="block text-xs text-gray-400 mb-1">Valid To</label><input type="date" id="scheme-to" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+              </div>
+              <div class="bg-slate-800/50 rounded-xl p-4">
+                <h3 class="font-semibold text-cyan-400 mb-3">📊 Point Values</h3>
+                <div class="grid grid-cols-3 gap-4">
+                  <div><label class="block text-xs text-gray-400 mb-1">Leadgen</label><input type="number" id="point-leadgen" value="1" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">Prolink</label><input type="number" id="point-prolink" value="2" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">SVG</label><input type="number" id="point-svg" value="1" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                </div>
+              </div>
+              <div class="bg-slate-800/50 rounded-xl p-4">
+                <h3 class="font-semibold text-emerald-400 mb-3">💼 Target 8 Slabs</h3>
+                <div class="grid grid-cols-3 gap-4 mb-3">
+                  <div><label class="block text-xs text-gray-400 mb-1">Min Pts</label><input type="number" id="t8-min-points" value="7" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">Target Pts</label><input type="number" id="t8-target-points" value="8" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">Exceed Pts</label><input type="number" id="t8-exceed-points" value="9" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                  <div><label class="block text-xs text-gray-400 mb-1">Min ₹/pt</label><input type="number" id="t8-min-rate" value="7" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">Target ₹/pt</label><input type="number" id="t8-target-rate" value="8" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">Exceed ₹/pt</label><input type="number" id="t8-exceed-rate" value="9" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                </div>
+              </div>
+              <div class="bg-slate-800/50 rounded-xl p-4">
+                <h3 class="font-semibold text-blue-400 mb-3">💼 Target 10 Slabs</h3>
+                <div class="grid grid-cols-3 gap-4 mb-3">
+                  <div><label class="block text-xs text-gray-400 mb-1">Min Pts</label><input type="number" id="t10-min-points" value="9" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">Target Pts</label><input type="number" id="t10-target-points" value="10" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">Exceed Pts</label><input type="number" id="t10-exceed-points" value="11" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                  <div><label class="block text-xs text-gray-400 mb-1">Min ₹/pt</label><input type="number" id="t10-min-rate" value="7" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">Target ₹/pt</label><input type="number" id="t10-target-rate" value="8" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">Exceed ₹/pt</label><input type="number" id="t10-exceed-rate" value="9" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                </div>
+              </div>
+              <div class="bg-slate-800/50 rounded-xl p-4">
+                <h3 class="font-semibold text-purple-400 mb-3">🎁 Holiday Rates (₹/image)</h3>
+                <div class="grid grid-cols-3 gap-4">
+                  <div><label class="block text-xs text-gray-400 mb-1">Leadgen</label><input type="number" id="holiday-leadgen-rate" value="75" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">Prolink</label><input type="number" id="holiday-prolink-rate" value="100" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">SVG</label><input type="number" id="holiday-svg-rate" value="75" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="px-6 py-4 border-t border-slate-700 bg-slate-800/50 flex justify-between items-center">
+            <div class="text-sm text-gray-400"><span id="scheme-count">0</span> schemes</div>
+            <div class="flex gap-2">
+              <button id="save-scheme-btn" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium">💾 Save</button>
+              <button onclick="closeModal('scheme-modal')" class="px-6 py-2 bg-slate-700 rounded-lg text-sm">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SETTINGS MODAL ==================== -->
+    <div id="settings-modal" class="fixed inset-0 z-50 hidden">
+      <div class="modal-overlay absolute inset-0" onclick="closeModal('settings-modal')"></div>
+      <div class="relative z-10 flex items-center justify-center min-h-screen p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden animate-scale-in">
+          <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+            <div><h2 class="text-xl font-bold">⚙️ Settings</h2><p class="text-sm text-gray-400">Import/Export configuration</p></div>
+            <button onclick="closeModal('settings-modal')" class="p-2 hover:bg-slate-800 rounded-lg">✕</button>
+          </div>
+          <div class="p-6 space-y-4">
+            <div class="bg-slate-800 rounded-xl p-4">
+              <h3 class="font-semibold text-emerald-400 mb-2">📤 Export</h3>
+              <p class="text-xs text-gray-400 mb-3">Download all settings to share with team</p>
+              <button id="export-settings-btn" class="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium">Download Settings</button>
+            </div>
+            <div class="bg-slate-800 rounded-xl p-4">
+              <h3 class="font-semibold text-cyan-400 mb-2">📥 Import</h3>
+              <p class="text-xs text-gray-400 mb-3">Load settings from JSON file</p>
+              <input type="file" id="import-settings-input" accept=".json" class="hidden">
+              <button id="import-settings-btn" class="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm font-medium">Select File</button>
+            </div>
+            <div class="bg-slate-800/50 rounded-xl p-4 text-sm">
+              <h3 class="font-semibold text-gray-300 mb-2">📊 Current Data</h3>
+              <div class="space-y-1 text-gray-400">
+                <div class="flex justify-between"><span>Holidays:</span><span id="settings-holiday-count" class="text-white">0</span></div>
+                <div class="flex justify-between"><span>Joiners:</span><span id="settings-joiner-count" class="text-white">0</span></div>
+                <div class="flex justify-between"><span>Resigned:</span><span id="settings-resigned-count" class="text-white">0</span></div>
+                <div class="flex justify-between"><span>Schemes:</span><span id="settings-scheme-count" class="text-white">0</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="px-6 py-4 border-t border-slate-700"><button onclick="closeModal('settings-modal')" class="w-full px-6 py-2 bg-slate-700 rounded-lg text-sm">Close</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== EMPLOYEE POPUP ==================== -->
+    <div id="employee-popup" class="fixed inset-0 z-50 hidden">
+      <div class="modal-overlay absolute inset-0" onclick="closeModal('employee-popup')"></div>
+      <div class="relative z-10 flex items-center justify-center min-h-screen p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-scale-in">
+          <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+            <div><h2 id="popup-employee-name" class="text-xl font-bold">Employee</h2><p id="popup-employee-id" class="text-sm text-gray-400"></p></div>
+            <button onclick="closeModal('employee-popup')" class="p-2 hover:bg-slate-800 rounded-lg">✕</button>
+          </div>
+          <div class="overflow-y-auto max-h-[70vh]">
+            <div id="popup-summary" class="p-6 grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-800/30 border-b border-slate-700"></div>
+            <div class="p-6 border-b border-slate-700">
+              <h3 class="font-semibold text-emerald-400 mb-3">💼 Working Day Breakdown</h3>
+              <div id="popup-working-breakdown" class="space-y-2 max-h-48 overflow-y-auto"></div>
+              <div id="popup-working-total" class="mt-3 pt-3 border-t border-slate-700 flex justify-between font-bold"></div>
+            </div>
+            <div class="p-6">
+              <h3 class="font-semibold text-purple-400 mb-3">🎁 Holiday Pay Breakdown</h3>
+              <div id="popup-holiday-breakdown" class="space-y-2 max-h-48 overflow-y-auto"></div>
+              <div id="popup-holiday-total" class="mt-3 pt-3 border-t border-slate-700 flex justify-between font-bold"></div>
+            </div>
+          </div>
+          <div class="px-6 py-4 border-t border-slate-700 bg-gradient-to-r from-emerald-900/30 to-purple-900/30">
+            <div class="flex justify-between items-center"><span class="text-lg font-bold">💵 TOTAL:</span><span id="popup-grand-total" class="text-2xl font-bold gradient-gold">₹0</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== JAVASCRIPT PLACEHOLDER ==================== -->
+  <script>
+    // ================================================================
+    // SECTION 1: GLOBAL STATE & CONFIGURATION
+    // ================================================================
+    let rawExcelData = null;
+    let appData = null;
+    let reportMode = 'mtd';
+    let darkMode = true;
+    let searchTerm = '';
+    let filterStatus = 'all';
+    let sortBy = 'name-asc';
+    let dateFilter = { from: null, to: null };
+    let ytdFiles = [];
+    let currentSchemeId = null;
+
+    // ================================================================
+    // SECTION 2: DEFAULT DATA
+    // ================================================================
+    const DEFAULT_HOLIDAYS_2026 = [
+      { date: '2026-01-26', name: 'Republic Day' },
+      { date: '2026-03-03', name: 'Holi' },
+      { date: '2026-05-01', name: 'May Day' },
+      { date: '2026-08-15', name: 'Independence Day' },
+      { date: '2026-10-02', name: 'Gandhi Jayanti' },
+      { date: '2026-10-19', name: 'Durga Puja' },
+      { date: '2026-10-20', name: 'Durga Puja' },
+      { date: '2026-10-21', name: 'Durga Puja' },
+      { date: '2026-11-09', name: 'Diwali' },
+      { date: '2026-12-25', name: 'Christmas' }
+    ];
+
+    const DEFAULT_SCHEME = {
+      id: 'scheme_default',
+      name: 'Nov-Dec 2025',
+      validFrom: '2025-11-01',
+      validTo: '2025-12-31',
+      points: { leadgen: 1, prolink: 2, svg: 1 },
+      target8: { minPoints: 7, targetPoints: 8, exceedPoints: 9, minRate: 7, targetRate: 8, exceedRate: 9 },
+      target10: { minPoints: 9, targetPoints: 10, exceedPoints: 11, minRate: 7, targetRate: 8, exceedRate: 9 },
+      holidayRates: { leadgen: 75, prolink: 100, svg: 75 }
+    };
+
+    let holidays = [];
+    let newJoiners = [];
+    let resignedEmployees = [];
+    let incentiveSchemes = [];
+
+    // ================================================================
+    // SECTION 3: INITIALIZATION
+    // ================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      loadAllData();
+      setupEventListeners();
+    });
+
+    function loadAllData() {
+      const h = localStorage.getItem('pt_holidays');
+      holidays = h ? JSON.parse(h) : [...DEFAULT_HOLIDAYS_2026];
+      const j = localStorage.getItem('pt_joiners');
+      newJoiners = j ? JSON.parse(j) : [];
+      const r = localStorage.getItem('pt_resigned');
+      resignedEmployees = r ? JSON.parse(r) : [];
+      const s = localStorage.getItem('pt_schemes');
+      incentiveSchemes = s ? JSON.parse(s) : [{ ...DEFAULT_SCHEME }];
+      if (incentiveSchemes.length > 0) currentSchemeId = incentiveSchemes[0].id;
+      saveAllData();
+    }
+
+    function saveAllData() {
+      localStorage.setItem('pt_holidays', JSON.stringify(holidays));
+      localStorage.setItem('pt_joiners', JSON.stringify(newJoiners));
+      localStorage.setItem('pt_resigned', JSON.stringify(resignedEmployees));
+      localStorage.setItem('pt_schemes', JSON.stringify(incentiveSchemes));
+    }
+
+    // ================================================================
+    // SECTION 4: EVENT LISTENERS
+    // ================================================================
+    function setupEventListeners() {
+      // Mode buttons
+      document.getElementById('mtd-mode-btn').addEventListener('click', () => setReportMode('mtd'));
+      document.getElementById('ytd-mode-btn').addEventListener('click', () => setReportMode('ytd'));
+      
+      // MTD Upload
+      const mtdZone = document.getElementById('mtd-upload-zone');
+      const fileInput = document.getElementById('file-input');
+      mtdZone.addEventListener('click', () => fileInput.click());
+      mtdZone.addEventListener('dragover', (e) => { e.preventDefault(); mtdZone.classList.add('border-cyan-500'); });
+      mtdZone.addEventListener('dragleave', () => mtdZone.classList.remove('border-cyan-500'));
+      mtdZone.addEventListener('drop', (e) => { e.preventDefault(); mtdZone.classList.remove('border-cyan-500'); if(e.dataTransfer.files[0]) parseExcelFile(e.dataTransfer.files[0]); });
+      fileInput.addEventListener('change', (e) => { if(e.target.files[0]) parseExcelFile(e.target.files[0]); });
+      
+      // YTD Upload
+      const ytdZone = document.getElementById('ytd-upload-zone');
+      const ytdInput = document.getElementById('ytd-file-input');
+      ytdZone.addEventListener('click', (e) => { if(e.target.tagName !== 'BUTTON') ytdInput.click(); });
+      ytdZone.addEventListener('dragover', (e) => { e.preventDefault(); ytdZone.classList.add('border-purple-500'); });
+      ytdZone.addEventListener('dragleave', () => ytdZone.classList.remove('border-purple-500'));
+      ytdZone.addEventListener('drop', (e) => { e.preventDefault(); ytdZone.classList.remove('border-purple-500'); ytdFiles = Array.from(e.dataTransfer.files); showYTDFilesList(); });
+      ytdInput.addEventListener('change', (e) => { ytdFiles = Array.from(e.target.files); showYTDFilesList(); });
+      document.getElementById('process-ytd-btn').addEventListener('click', processYTDFiles);
+      
+      // Dashboard controls
+      document.getElementById('search-input').addEventListener('input', (e) => { searchTerm = e.target.value; renderTable(); });
+      document.getElementById('filter-select').addEventListener('change', (e) => { filterStatus = e.target.value; renderTable(); });
+      document.getElementById('sort-select').addEventListener('change', (e) => { sortBy = e.target.value; renderTable(); });
+      document.getElementById('apply-date-filter').addEventListener('click', applyDateFilter);
+      document.getElementById('clear-date-filter').addEventListener('click', clearDateFilter);
+      
+      // Header buttons
+      document.getElementById('pdf-with-incentive-btn').addEventListener('click', () => downloadPDF(true));
+      document.getElementById('pdf-without-incentive-btn').addEventListener('click', () => downloadPDF(false));
+      document.getElementById('download-excel-btn').addEventListener('click', downloadExcel);
+      document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+      document.getElementById('fullscreen-toggle').addEventListener('click', toggleFullscreen);
+      document.getElementById('print-btn').addEventListener('click', () => window.print());
+      document.getElementById('new-upload-btn').addEventListener('click', resetApp);
+      
+      // Modal openers - Upload
+      document.getElementById('manage-holidays-btn-upload').addEventListener('click', () => openModal('holiday-modal'));
+      document.getElementById('manage-joiners-btn-upload').addEventListener('click', () => openModal('joiner-modal'));
+      document.getElementById('manage-resigned-btn-upload').addEventListener('click', () => openModal('resigned-modal'));
+      document.getElementById('manage-scheme-btn-upload').addEventListener('click', () => openModal('scheme-modal'));
+      document.getElementById('settings-btn-upload').addEventListener('click', () => openModal('settings-modal'));
+      
+      // Modal openers - Dashboard
+      document.getElementById('manage-holidays-btn').addEventListener('click', () => openModal('holiday-modal'));
+      document.getElementById('manage-joiners-btn').addEventListener('click', () => openModal('joiner-modal'));
+      document.getElementById('manage-resigned-btn').addEventListener('click', () => openModal('resigned-modal'));
+      document.getElementById('manage-scheme-btn').addEventListener('click', () => openModal('scheme-modal'));
+      document.getElementById('settings-btn').addEventListener('click', () => openModal('settings-modal'));
+      
+      // Holiday modal
+      document.getElementById('holiday-year-select').addEventListener('change', renderHolidayList);
+      document.getElementById('add-holiday-btn').addEventListener('click', addHoliday);
+      document.getElementById('clear-all-holidays-btn').addEventListener('click', clearAllHolidays);
+      document.getElementById('bulk-import-btn').addEventListener('click', bulkImportHolidays);
+      
+      // Joiner/Resigned
+      document.getElementById('add-joiner-btn').addEventListener('click', addJoiner);
+      document.getElementById('add-resigned-btn').addEventListener('click', addResigned);
+      
+      // Scheme modal
+      document.getElementById('scheme-selector').addEventListener('change', loadSchemeToForm);
+      document.getElementById('new-scheme-btn').addEventListener('click', createNewScheme);
+      document.getElementById('delete-scheme-btn').addEventListener('click', deleteCurrentScheme);
+      document.getElementById('save-scheme-btn').addEventListener('click', saveSchemeFromForm);
+      
+      // Settings
+      document.getElementById('export-settings-btn').addEventListener('click', exportSettings);
+      document.getElementById('import-settings-btn').addEventListener('click', () => document.getElementById('import-settings-input').click());
+      document.getElementById('import-settings-input').addEventListener('change', importSettings);
+    }
+
+    // ================================================================
+    // SECTION 5: REPORT MODE
+    // ================================================================
+    function setReportMode(mode) {
+      reportMode = mode;
+      const mtdBtn = document.getElementById('mtd-mode-btn');
+      const ytdBtn = document.getElementById('ytd-mode-btn');
+      mtdBtn.className = mode === 'mtd' ? 'px-6 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-sm font-medium transition-all' : 'px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium transition-all';
+      ytdBtn.className = mode === 'ytd' ? 'px-6 py-3 bg-purple-600 hover:bg-purple-500 rounded-xl text-sm font-medium transition-all' : 'px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium transition-all';
+      document.getElementById('mtd-upload-zone').classList.toggle('hidden', mode !== 'mtd');
+      document.getElementById('ytd-upload-zone').classList.toggle('hidden', mode !== 'ytd');
+    }
+
+    // ================================================================
+    // SECTION 6: DATE & HOLIDAY HELPERS
+    // ================================================================
+    function isHoliday(year, month, day) {
+      const ds = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      return holidays.some(h => h.date === ds);
+    }
+
+    function isSunday(year, month, day) {
+      return new Date(year, month - 1, day).getDay() === 0;
+    }
+
+    function isNonWorkingDay(year, month, day) {
+      return isSunday(year, month, day) || isHoliday(year, month, day);
+    }
+
+    function getWorkingDaysInRange(year, month, fromDay, toDay) {
+      let count = 0;
+      for (let d = fromDay; d <= toDay; d++) {
+        if (!isNonWorkingDay(year, month, d)) count++;
+      }
+      return count;
+    }
+
+    function getMonthName(m) {
+      return ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m] || '';
+    }
+
+    // ================================================================
+    // SECTION 7: JOINER/RESIGNED HELPERS
+    // ================================================================
+    function getJoinerInfo(id) {
+      return newJoiners.find(j => j.id.toUpperCase() === id.toUpperCase());
+    }
+
+    function getResignedInfo(id) {
+      return resignedEmployees.find(r => r.id.toUpperCase() === id.toUpperCase());
+    }
+
+    function getEffectiveDateRange(empId, year, month, defaultFrom, defaultTo) {
+      let fromDay = defaultFrom, toDay = defaultTo;
+      const joiner = getJoinerInfo(empId);
+      if (joiner) {
+        const jd = new Date(joiner.date);
+        if (jd.getFullYear() === year && jd.getMonth() + 1 === month) {
+          fromDay = Math.max(fromDay, jd.getDate());
+        }
+      }
+      const resigned = getResignedInfo(empId);
+      if (resigned) {
+        const rd = new Date(resigned.date);
+        if (rd.getFullYear() === year && rd.getMonth() + 1 === month) {
+          toDay = Math.min(toDay, rd.getDate());
+        }
+      }
+      return { fromDay, toDay };
+    }
+
+    // ================================================================
+    // SECTION 8: INCENTIVE SCHEME HELPERS
+    // ================================================================
+    function getSchemeForDate(dateStr) {
+      const d = new Date(dateStr);
+      for (const s of incentiveSchemes) {
+        if (d >= new Date(s.validFrom) && d <= new Date(s.validTo)) return s;
+      }
+      return incentiveSchemes[0] || DEFAULT_SCHEME;
+    }
+
+    function getSchemeForMonth(year, month) {
+      return getSchemeForDate(`${year}-${String(month).padStart(2,'0')}-15`);
+    }
+
+    // ================================================================
+    // SECTION 9: POINT CALCULATION
+    // ================================================================
+    function calculatePoints(r, p, s, scheme) {
+      return (r * scheme.points.leadgen) + (p * scheme.points.prolink) + (s * scheme.points.svg);
+    }
+
+    // ================================================================
+    // SECTION 10: WORKING DAY INCENTIVE
+    // ================================================================
+    function calculateDailyIncentive(points, target, scheme) {
+      const slab = target === 10 ? scheme.target10 : scheme.target8;
+      if (points < slab.minPoints) return { rate: 0, amount: 0, slab: 'below' };
+      if (points >= slab.exceedPoints) return { rate: slab.exceedRate, amount: points * slab.exceedRate, slab: 'exceed' };
+      if (points >= slab.targetPoints) return { rate: slab.targetRate, amount: points * slab.targetRate, slab: 'target' };
+      return { rate: slab.minRate, amount: points * slab.minRate, slab: 'min' };
+    }
+
+    // ================================================================
+    // SECTION 11: HOLIDAY PAY CALCULATION
+    // ================================================================
+    function calculateHolidayPay(r, p, s, scheme) {
+      return (r * scheme.holidayRates.leadgen) + (p * scheme.holidayRates.prolink) + (s * scheme.holidayRates.svg);
+    }
+
+    // ================================================================
+    // SECTION 12: MODAL FUNCTIONS
+    // ================================================================
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      if (id === 'holiday-modal') renderHolidayList();
+      if (id === 'joiner-modal') renderJoinerList();
+      if (id === 'resigned-modal') renderResignedList();
+      if (id === 'scheme-modal') renderSchemeModal();
+      if (id === 'settings-modal') updateSettingsCounts();
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+      document.body.style.overflow = '';
+      saveAllData();
+      if (appData && id !== 'employee-popup' && rawExcelData) processData(rawExcelData);
+    }
+
+    // ================================================================
+    // SECTION 13: UTILITY FUNCTIONS
+    // ================================================================
+    function toggleTheme() {
+      darkMode = !darkMode;
+      document.body.classList.toggle('light-mode', !darkMode);
+      document.getElementById('theme-toggle').textContent = darkMode ? '☀️' : '🌙';
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+
+    function resetApp() {
+      rawExcelData = null;
+      appData = null;
+      dateFilter = { from: null, to: null };
+      document.getElementById('dashboard').classList.add('hidden');
+      document.getElementById('upload-screen').classList.remove('hidden');
+    }
+
+    function showYTDFilesList() {
+      const container = document.getElementById('ytd-files-list');
+      container.innerHTML = ytdFiles.map((f, i) => `<div class="flex justify-between py-1 text-sm"><span>${i+1}. ${f.name}</span><span class="text-gray-500">${(f.size/1024).toFixed(1)}KB</span></div>`).join('');
+      container.classList.remove('hidden');
+      document.getElementById('process-ytd-btn').classList.remove('hidden');
+    }
+
+    
+
+    // ================================================================
+    // SECTION 14: FILE PARSING
+    // ================================================================
+    function parseExcelFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const wb = XLSX.read(e.target.result, { type: 'array' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+          rawExcelData = json;
+          processData(json);
+        } catch (err) {
+          alert('Error parsing Excel file');
+          console.error(err);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    async function processYTDFiles() {
+      if (ytdFiles.length === 0) return;
+      const allData = [];
+      for (const file of ytdFiles) {
+        const data = await readExcelFileAsync(file);
+        allData.push(data);
+      }
+      processYTDData(allData);
+    }
+
+    function readExcelFileAsync(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const wb = XLSX.read(e.target.result, { type: 'array' });
+            const sheet = wb.Sheets[wb.SheetNames[0]];
+            resolve(XLSX.utils.sheet_to_json(sheet, { header: 1 }));
+          } catch (err) { reject(err); }
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    // ================================================================
+    // SECTION 15: MTD DATA PROCESSING
+    // ================================================================
+    function processData(jsonData) {
+      const reportDateStr = jsonData[0]?.[0] || '';
+      const dateMatch = reportDateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      const currentDay = dateMatch ? parseInt(dateMatch[1]) : 15;
+      const currentMonth = dateMatch ? parseInt(dateMatch[2]) : 1;
+      const currentYear = dateMatch ? parseInt(dateMatch[3]) : 2026;
+
+      const scheme = getSchemeForMonth(currentYear, currentMonth);
+      const filterFromDay = dateFilter.from ? new Date(dateFilter.from).getDate() : 1;
+      const filterToDay = dateFilter.to ? new Date(dateFilter.to).getDate() : currentDay;
+
+      // Setup date pickers
+      const ms = `${currentYear}-${String(currentMonth).padStart(2,'0')}-01`;
+      const me = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(currentDay).padStart(2,'0')}`;
+      document.getElementById('date-from').value = dateFilter.from || ms;
+      document.getElementById('date-from').min = ms;
+      document.getElementById('date-from').max = me;
+      document.getElementById('date-to').value = dateFilter.to || me;
+      document.getElementById('date-to').min = ms;
+      document.getElementById('date-to').max = me;
+
+      const employees = [];
+
+      for (let i = 4; i < jsonData.length - 2; i++) {
+        const row = jsonData[i];
+        if (!row || !row[1]) continue;
+        const decoName = row[1]?.toString() || '';
+        const prMatch = decoName.match(/\(PR\d+\)/);
+        if (!prMatch) continue;
+
+        const empId = prMatch[0].replace(/[()]/g, '');
+        const dailyTarget = parseInt(row[6]) || 8;
+        const retailPending = parseInt(row[2]) || 0;
+        const prolinksPending = parseInt(row[4]) || 0;
+        const svgPending = parseInt(row[5]) || 0;
+
+        const effRange = getEffectiveDateRange(empId, currentYear, currentMonth, filterFromDay, filterToDay);
+        const empFromDay = effRange.fromDay;
+        const empToDay = effRange.toDay;
+
+        const joinerInfo = getJoinerInfo(empId);
+        const resignedInfo = getResignedInfo(empId);
+
+        const dailyData = [];
+        let totalDone = 0, totalRetail = 0, totalProlinks = 0, totalSvg = 0;
+        let totalPoints = 0, totalWorkingIncentive = 0, totalHolidayPay = 0;
+        const workingDayBreakdown = [];
+        const holidayBreakdown = [];
+
+        for (let day = 1; day <= 31; day++) {
+          const baseCol = 7 + (day - 1) * 3;
+          const retail = parseInt(row[baseCol]) || 0;
+          const prolinks = parseInt(row[baseCol + 1]) || 0;
+          const svg = parseInt(row[baseCol + 2]) || 0;
+          const total = retail + prolinks + svg;
+
+          const isNonWorking = isNonWorkingDay(currentYear, currentMonth, day);
+          const isInFilter = day >= filterFromDay && day <= filterToDay && day <= currentDay;
+          const isInEmpRange = day >= empFromDay && day <= empToDay;
+          const isActive = day <= currentDay;
+
+          let dayPoints = 0;
+          let dayIncentive = { rate: 0, amount: 0, slab: 'none' };
+          let dayHolidayPay = 0;
+
+          if (isActive && isInFilter && isInEmpRange) {
+            totalRetail += retail;
+            totalProlinks += prolinks;
+            totalSvg += svg;
+            totalDone += total;
+
+            if (isNonWorking) {
+              dayHolidayPay = calculateHolidayPay(retail, prolinks, svg, scheme);
+              totalHolidayPay += dayHolidayPay;
+              if (total > 0) {
+                holidayBreakdown.push({ day, retail, prolinks, svg, total, pay: dayHolidayPay, isSunday: isSunday(currentYear, currentMonth, day) });
+              }
+            } else {
+              dayPoints = calculatePoints(retail, prolinks, svg, scheme);
+              totalPoints += dayPoints;
+              dayIncentive = calculateDailyIncentive(dayPoints, dailyTarget, scheme);
+              totalWorkingIncentive += dayIncentive.amount;
+              workingDayBreakdown.push({ day, retail, prolinks, svg, total, points: dayPoints, rate: dayIncentive.rate, amount: dayIncentive.amount, slab: dayIncentive.slab });
+            }
+          }
+
+          dailyData.push({
+            day, retail, prolinks, svg, total, points: dayPoints,
+            isActive, isInFilter, isInEmpRange, isNonWorking,
+            isSunday: isSunday(currentYear, currentMonth, day),
+            isHoliday: isHoliday(currentYear, currentMonth, day),
+            incentive: dayIncentive, holidayPay: dayHolidayPay
+          });
+        }
+
+        const workingDays = getWorkingDaysInRange(currentYear, currentMonth, empFromDay, Math.min(empToDay, filterToDay));
+        const targetRequired = dailyTarget * workingDays;
+        const shortfall = Math.max(0, targetRequired - totalDone);
+        const achievementPct = targetRequired > 0 ? (totalDone / targetRequired * 100) : 0;
+
+        const workingDaysData = dailyData.filter(d => d.isActive && d.isInFilter && d.isInEmpRange && !d.isNonWorking);
+        const trend = calcTrend(workingDaysData.slice(-5));
+        const alerts = calcAlerts(workingDaysData, dailyTarget, achievementPct, scheme);
+
+        employees.push({
+          name: decoName.replace(/\s*\(PR\d+\)/, '').trim(),
+          id: empId, fullName: decoName, dailyTarget, dailyData,
+          totalDone, totalRetail, totalProlinks, totalSvg, totalPoints,
+          targetRequired, shortfall, achievementPct, workingDays,
+          workingIncentive: totalWorkingIncentive, holidayPay: totalHolidayPay,
+          totalEarnings: totalWorkingIncentive + totalHolidayPay,
+          workingDayBreakdown, holidayBreakdown,
+          retailPending, prolinksPending, svgPending,
+          totalPending: retailPending + prolinksPending + svgPending,
+          trend, alerts,
+          isNewJoiner: !!joinerInfo, joinerDate: joinerInfo?.date,
+          isResigned: !!resignedInfo, resignedDate: resignedInfo?.date,
+          effectiveFromDay: empFromDay, effectiveToDay: empToDay
+        });
+      }
+
+      const sorted = [...employees].sort((a, b) => b.achievementPct - a.achievementPct);
+      const globalWD = getWorkingDaysInRange(currentYear, currentMonth, filterFromDay, filterToDay);
+
+      appData = {
+        employees, currentDay, currentMonth, currentYear,
+        filterFromDay, filterToDay, scheme,
+        reportDate: `${currentDay}/${String(currentMonth).padStart(2,'0')}/${currentYear}`,
+        dateRangeText: filterFromDay === 1 && filterToDay === currentDay ? `1 - ${currentDay} ${getMonthName(currentMonth)}` : `${filterFromDay} - ${filterToDay} ${getMonthName(currentMonth)}`,
+        workingDays: globalWD,
+        leaderboard: sorted.slice(0, 5),
+        champion: sorted[0],
+        teamStats: calcTeamStats(employees, globalWD),
+        isYTD: false
+      };
+
+      showDashboard();
+    }
+
+    // ================================================================
+    // SECTION 16: YTD DATA PROCESSING
+    // ================================================================
+    function processYTDData(allMonthsData) {
+      const empMap = new Map();
+
+      allMonthsData.forEach(jsonData => {
+        const reportDateStr = jsonData[0]?.[0] || '';
+        const dateMatch = reportDateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        const currentDay = dateMatch ? parseInt(dateMatch[1]) : 31;
+        const currentMonth = dateMatch ? parseInt(dateMatch[2]) : 1;
+        const currentYear = dateMatch ? parseInt(dateMatch[3]) : 2026;
+        const scheme = getSchemeForMonth(currentYear, currentMonth);
+
+        for (let i = 4; i < jsonData.length - 2; i++) {
+          const row = jsonData[i];
+          if (!row || !row[1]) continue;
+          const decoName = row[1]?.toString() || '';
+          const prMatch = decoName.match(/\(PR\d+\)/);
+          if (!prMatch) continue;
+
+          const empId = prMatch[0].replace(/[()]/g, '');
+          const dailyTarget = parseInt(row[6]) || 8;
+          let monthOutput = 0, monthPoints = 0, monthWI = 0, monthHP = 0;
+          const workingDays = getWorkingDaysInRange(currentYear, currentMonth, 1, currentDay);
+
+          for (let day = 1; day <= currentDay; day++) {
+            const baseCol = 7 + (day - 1) * 3;
+            const r = parseInt(row[baseCol]) || 0;
+            const p = parseInt(row[baseCol + 1]) || 0;
+            const s = parseInt(row[baseCol + 2]) || 0;
+            monthOutput += r + p + s;
+
+            if (isNonWorkingDay(currentYear, currentMonth, day)) {
+              monthHP += calculateHolidayPay(r, p, s, scheme);
+            } else {
+              const pts = calculatePoints(r, p, s, scheme);
+              monthPoints += pts;
+              monthWI += calculateDailyIncentive(pts, dailyTarget, scheme).amount;
+            }
+          }
+
+          const monthTarget = dailyTarget * workingDays;
+
+          if (!empMap.has(empId)) {
+            empMap.set(empId, {
+              name: decoName.replace(/\s*\(PR\d+\)/, '').trim(),
+              id: empId, fullName: decoName, dailyTarget,
+              totalDone: 0, totalPoints: 0, targetRequired: 0, workingDays: 0,
+              workingIncentive: 0, holidayPay: 0, months: []
+            });
+          }
+
+          const emp = empMap.get(empId);
+          emp.totalDone += monthOutput;
+          emp.totalPoints += monthPoints;
+          emp.targetRequired += monthTarget;
+          emp.workingDays += workingDays;
+          emp.workingIncentive += monthWI;
+          emp.holidayPay += monthHP;
+          emp.months.push({ month: currentMonth, year: currentYear, output: monthOutput, target: monthTarget, points: monthPoints, workingIncentive: monthWI, holidayPay: monthHP });
+        }
+      });
+
+      const employees = Array.from(empMap.values()).map(emp => ({
+        ...emp,
+        shortfall: Math.max(0, emp.targetRequired - emp.totalDone),
+        achievementPct: emp.targetRequired > 0 ? (emp.totalDone / emp.targetRequired * 100) : 0,
+        totalEarnings: emp.workingIncentive + emp.holidayPay,
+        trend: 'stable', alerts: [],
+        isNewJoiner: !!getJoinerInfo(emp.id),
+        isResigned: !!getResignedInfo(emp.id)
+      }));
+
+      const sorted = [...employees].sort((a, b) => b.achievementPct - a.achievementPct);
+      const avgWD = employees.length > 0 ? Math.round(employees.reduce((s, e) => s + e.workingDays, 0) / employees.length) : 0;
+
+      appData = {
+        employees, currentDay: 0, currentMonth: 0, currentYear: 2026,
+        filterFromDay: 1, filterToDay: 31,
+        scheme: incentiveSchemes[0] || DEFAULT_SCHEME,
+        reportDate: 'YTD Report',
+        dateRangeText: `${ytdFiles.length} Months Combined`,
+        workingDays: avgWD,
+        leaderboard: sorted.slice(0, 5),
+        champion: sorted[0],
+        teamStats: calcTeamStats(employees, avgWD),
+        isYTD: true
+      };
+
+      document.getElementById('report-type-badge').textContent = 'YTD';
+      document.getElementById('report-type-badge').className = 'px-3 py-1 rounded-full text-xs font-medium bg-purple-900/50 text-purple-400';
+      showDashboard();
+    }
+
+    // ================================================================
+    // SECTION 17: CALCULATION HELPERS
+    // ================================================================
+    function calcTrend(lastDays) {
+      if (lastDays.length < 3) return 'stable';
+      const recent = lastDays.slice(-2).reduce((a, b) => a + b.points, 0) / 2;
+      const earlier = lastDays.slice(0, 2).reduce((a, b) => a + b.points, 0) / 2;
+      if (recent - earlier > 1) return 'up';
+      if (earlier - recent > 1) return 'down';
+      return 'stable';
+    }
+
+    function calcAlerts(wdData, target, pct, scheme) {
+      const alerts = [];
+      const last3 = wdData.slice(-3);
+      const slab = target === 10 ? scheme.target10 : scheme.target8;
+      if (last3.length === 3 && last3.every(d => d.points < slab.minPoints)) alerts.push({ type: 'critical', icon: '🔴', message: '3+ days no incentive' });
+      if (pct < 80 && wdData.length > 5) alerts.push({ type: 'warning', icon: '⚠️', message: 'At risk' });
+      const lastDay = wdData[wdData.length - 1];
+      if (lastDay && lastDay.total === 0) alerts.push({ type: 'inactive', icon: '👻', message: 'No output today' });
+      if (pct >= 110) alerts.push({ type: 'star', icon: '⭐', message: 'Star performer' });
+      return alerts;
+    }
+
+    function calcTeamStats(employees, wd) {
+      const total = employees.length;
+      if (total === 0) return {};
+      return {
+        total,
+        avgAchievement: employees.reduce((a, b) => a + b.achievementPct, 0) / total,
+        onTrack: employees.filter(e => e.achievementPct >= 100).length,
+        atRisk: employees.filter(e => e.achievementPct >= 80 && e.achievementPct < 100).length,
+        critical: employees.filter(e => e.achievementPct < 80).length,
+        totalOutput: employees.reduce((a, b) => a + b.totalDone, 0),
+        totalTarget: employees.reduce((a, b) => a + b.targetRequired, 0),
+        totalPoints: employees.reduce((a, b) => a + b.totalPoints, 0),
+        totalWorkingIncentive: employees.reduce((a, b) => a + b.workingIncentive, 0),
+        totalHolidayPay: employees.reduce((a, b) => a + b.holidayPay, 0),
+        totalEarnings: employees.reduce((a, b) => a + b.totalEarnings, 0),
+        workingDays: wd,
+        newJoinersCount: employees.filter(e => e.isNewJoiner).length,
+        resignedCount: employees.filter(e => e.isResigned).length,
+        earningIncentive: employees.filter(e => e.workingIncentive > 0).length
+      };
+    }
+
+    // ================================================================
+    // SECTION 18: DATE FILTER
+    // ================================================================
+    function applyDateFilter() {
+      const fromDate = document.getElementById('date-from').value;
+      const toDate = document.getElementById('date-to').value;
+      if (!fromDate || !toDate) return alert('Select both dates');
+      if (new Date(fromDate) > new Date(toDate)) return alert('From cannot be after To');
+      dateFilter = { from: fromDate, to: toDate };
+      if (rawExcelData) processData(rawExcelData);
+    }
+
+    function clearDateFilter() {
+      dateFilter = { from: null, to: null };
+      if (rawExcelData) processData(rawExcelData);
+    }
+    // ================================================================
+    // SECTION 19: SHOW DASHBOARD
+    // ================================================================
+    function showDashboard() {
+      document.getElementById('upload-screen').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      renderDashboard();
+    }
+
+    function renderDashboard() {
+      document.getElementById('report-date-badge').textContent = '📅 ' + appData.dateRangeText;
+      document.getElementById('working-days-badge').textContent = '✅ ' + appData.workingDays + ' Working Days';
+      renderSummaryCards();
+      renderChampion();
+      renderLeaderboard();
+      renderTable();
+      renderFooterStats();
+    }
+
+    // ================================================================
+    // SECTION 20: SUMMARY CARDS
+    // ================================================================
+    function renderSummaryCards() {
+      const s = appData.teamStats;
+      document.getElementById('summary-cards').innerHTML = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-gray-500 mb-1">Employees</div><div class="text-xl font-bold">${s.total}</div></div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-emerald-400 mb-1">Working Days</div><div class="text-xl font-bold text-emerald-400">${s.workingDays}</div></div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-cyan-400 mb-1">Total Output</div><div class="text-xl font-bold text-cyan-400">${s.totalOutput?.toLocaleString()||0}</div></div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-purple-400 mb-1">Total Points</div><div class="text-xl font-bold text-purple-400">${s.totalPoints?.toLocaleString()||0}</div></div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-gray-500 mb-1">Avg %</div><div class="text-xl font-bold">${s.avgAchievement?.toFixed(1)||0}%</div></div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-emerald-400 mb-1">✅ On Track</div><div class="text-xl font-bold text-emerald-400">${s.onTrack}</div></div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-red-400 mb-1">🔴 Critical</div><div class="text-xl font-bold text-red-400">${s.critical}</div></div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-blue-400 mb-1">🆕 Joiners</div><div class="text-xl font-bold text-blue-400">${s.newJoinersCount}</div></div>
+        <div class="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 border border-emerald-700/50 rounded-xl p-3 col-span-2"><div class="text-xs uppercase text-emerald-400 mb-1">💼 Working Incentive</div><div class="text-xl font-bold text-emerald-400">₹${s.totalWorkingIncentive?.toLocaleString()||0}</div></div>
+        <div class="bg-gradient-to-br from-purple-900/30 to-purple-800/20 border border-purple-700/50 rounded-xl p-3 col-span-2"><div class="text-xs uppercase text-purple-400 mb-1">🎁 Holiday Pay</div><div class="text-xl font-bold text-purple-400">₹${s.totalHolidayPay?.toLocaleString()||0}</div></div>
+      `;
+    }
+
+    // ================================================================
+    // SECTION 21: CHAMPION & LEADERBOARD
+    // ================================================================
+    function renderChampion() {
+      const c = appData.champion;
+      document.getElementById('champion-card').innerHTML = `
+        <div class="flex items-center gap-2 mb-4"><span class="text-3xl">🏆</span><div><div class="text-xs uppercase text-gray-400">Champion</div><div class="text-lg font-bold">${c?.name||'TBD'}</div></div></div>
+        ${c ? `<div class="grid grid-cols-2 gap-4 text-sm">
+          <div><div class="text-gray-400">Output</div><div class="font-bold text-lg text-cyan-400">${c.totalDone}</div></div>
+          <div><div class="text-gray-400">Achievement</div><div class="font-bold text-lg text-emerald-400">${c.achievementPct.toFixed(1)}%</div></div>
+          <div><div class="text-gray-400">Points</div><div class="font-bold text-purple-400">${c.totalPoints}</div></div>
+          <div><div class="text-gray-400">Earnings</div><div class="font-bold text-amber-400">₹${c.totalEarnings}</div></div>
+        </div>` : ''}
+      `;
+    }
+
+    function renderLeaderboard() {
+      const top5 = appData.leaderboard;
+      const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+      document.getElementById('leaderboard-card').innerHTML = `
+        <div class="flex items-center gap-2 mb-4"><span class="text-xl">🎖️</span><div class="font-semibold">Top 5 Performers</div></div>
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-2">
+          ${top5.map((e,i) => `<div class="flex items-center gap-2 p-2 rounded-lg bg-slate-800 cursor-pointer hover:bg-slate-700" onclick="showEmployeePopup('${e.id}')">
+            <span class="text-lg">${medals[i]}</span>
+            <div class="min-w-0 flex-1"><div class="font-medium text-sm truncate">${e.name}</div><div class="text-xs text-gray-400">${e.achievementPct.toFixed(0)}% • ₹${e.totalEarnings}</div></div>
+          </div>`).join('')}
+        </div>
+      `;
+    }
+
+    // ================================================================
+    // SECTION 22: TABLE FILTERING & SORTING
+    // ================================================================
+    function getFilteredSortedEmployees() {
+      let list = appData.employees;
+      if (searchTerm) list = list.filter(e => e.fullName.toLowerCase().includes(searchTerm.toLowerCase()));
+      switch(filterStatus) {
+        case 'ontrack': list = list.filter(e => e.achievementPct >= 100); break;
+        case 'atrisk': list = list.filter(e => e.achievementPct >= 80 && e.achievementPct < 100); break;
+        case 'critical': list = list.filter(e => e.achievementPct < 80); break;
+        case 'star': list = list.filter(e => e.achievementPct >= 110); break;
+        case 'incentive': list = list.filter(e => e.workingIncentive > 0); break;
+        case 'newjoiners': list = list.filter(e => e.isNewJoiner); break;
+        case 'resigned': list = list.filter(e => e.isResigned); break;
+      }
+      const [key, dir] = sortBy.split('-');
+      list.sort((a, b) => {
+        let av, bv;
+        switch(key) {
+          case 'name': av = a.name.toLowerCase(); bv = b.name.toLowerCase(); break;
+          case 'achievement': av = a.achievementPct; bv = b.achievementPct; break;
+          case 'output': av = a.totalDone; bv = b.totalDone; break;
+          case 'shortfall': av = a.shortfall; bv = b.shortfall; break;
+          case 'incentive': av = a.totalEarnings; bv = b.totalEarnings; break;
+          default: av = a.name; bv = b.name;
+        }
+        if (typeof av === 'string') return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+        return dir === 'asc' ? av - bv : bv - av;
+      });
+      return list;
+    }
+
+    function getPointColor(pts, target, scheme) {
+      const slab = target === 10 ? scheme.target10 : scheme.target8;
+      if (pts >= slab.minPoints) return 'cell-green';
+      if (pts >= slab.minPoints - 1) return 'cell-yellow';
+      return 'cell-red';
+    }
+
+    // ================================================================
+    // SECTION 23: RENDER TABLE
+    // ================================================================
+    function renderTable() {
+      const employees = getFilteredSortedEmployees();
+      const isYTD = appData.isYTD;
+      const scheme = appData.scheme;
+
+      if (isYTD) {
+        document.getElementById('table-header').innerHTML = `<tr>
+          <th class="px-4 py-3 text-left font-semibold border-b border-slate-700">Employee</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">T</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">Months</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-cyan-400">Output</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-purple-400">Points</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">Target</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">Gap</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">%</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-emerald-400">W.Inc</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-purple-400">H.Pay</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-amber-400">Total ₹</th>
+        </tr>`;
+        document.getElementById('table-body').innerHTML = employees.map((e, idx) => `
+          <tr class="hover:bg-slate-800 cursor-pointer ${idx%2?'bg-slate-900/50':''}" onclick="showEmployeePopup('${e.id}')">
+            <td class="px-4 py-2 border-b border-slate-700"><div class="font-medium">${e.name}</div><div class="text-xs text-gray-500">(${e.id})${e.isNewJoiner?'<span class="ml-1 px-1 bg-blue-600 rounded text-[10px]">🆕</span>':''}${e.isResigned?'<span class="ml-1 px-1 bg-orange-600 rounded text-[10px]">🚪</span>':''}</div></td>
+            <td class="px-3 py-2 text-center border-b border-slate-700 font-bold">${e.dailyTarget}</td>
+            <td class="px-3 py-2 text-center border-b border-slate-700">${e.months?.length||0}</td>
+            <td class="px-3 py-2 text-center font-bold border-b border-slate-700 text-cyan-400">${e.totalDone}</td>
+            <td class="px-3 py-2 text-center font-bold border-b border-slate-700 text-purple-400">${e.totalPoints}</td>
+            <td class="px-3 py-2 text-center border-b border-slate-700">${e.targetRequired}</td>
+            <td class="px-3 py-2 text-center font-bold border-b border-slate-700 ${e.shortfall>0?'text-red-400':'text-emerald-400'}">${e.shortfall>0?'-'+e.shortfall:'0'}</td>
+            <td class="px-3 py-2 text-center border-b border-slate-700"><span class="font-bold ${e.achievementPct>=100?'text-emerald-400':e.achievementPct>=80?'text-amber-400':'text-red-400'}">${e.achievementPct.toFixed(0)}%</span></td>
+            <td class="px-3 py-2 text-center border-b border-slate-700 text-emerald-400 font-medium">₹${e.workingIncentive}</td>
+            <td class="px-3 py-2 text-center border-b border-slate-700 text-purple-400 font-medium">₹${e.holidayPay}</td>
+            <td class="px-3 py-2 text-center border-b border-slate-700 text-amber-400 font-bold">₹${e.totalEarnings}</td>
+          </tr>
+        `).join('');
+      } else {
+        // MTD Table with daily cells
+        const dayHeaders = [];
+        for (let d = appData.filterFromDay; d <= appData.filterToDay; d++) {
+          const nw = isNonWorkingDay(appData.currentYear, appData.currentMonth, d);
+          dayHeaders.push(`<th class="px-1 py-2 text-center font-semibold border-b border-slate-700 text-xs min-w-[32px] ${nw?'bg-purple-900/30':''}">${d}</th>`);
+        }
+
+        document.getElementById('table-header').innerHTML = `<tr>
+          <th class="px-4 py-2 text-left font-semibold border-b border-slate-700 min-w-[150px]">Employee</th>
+          <th class="px-1 py-2 text-center font-semibold border-b border-slate-700">T</th>
+          <th class="px-1 py-2 text-center font-semibold border-b border-slate-700">↕</th>
+          ${dayHeaders.join('')}
+          <th class="px-2 py-2 text-center font-semibold border-b border-slate-700 text-cyan-400">Out</th>
+          <th class="px-2 py-2 text-center font-semibold border-b border-slate-700 text-purple-400">Pts</th>
+          <th class="px-2 py-2 text-center font-semibold border-b border-slate-700">Req</th>
+          <th class="px-2 py-2 text-center font-semibold border-b border-slate-700">Gap</th>
+          <th class="px-2 py-2 text-center font-semibold border-b border-slate-700">%</th>
+          <th class="px-2 py-2 text-center font-semibold border-b border-slate-700 text-amber-400">₹</th>
+        </tr>`;
+
+        document.getElementById('table-body').innerHTML = employees.map((emp, idx) => {
+          const cells = [];
+          for (let d = appData.filterFromDay; d <= appData.filterToDay; d++) {
+            const day = emp.dailyData[d - 1];
+            if (!day) continue;
+
+            if (day.isNonWorking) {
+              if (day.total > 0) {
+                cells.push(`<td class="px-1 py-1 text-center border-b border-slate-700" title="Day ${d} (H): R${day.retail} P${day.prolinks} S${day.svg} = ₹${day.holidayPay}"><div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-[10px] font-bold text-white cell-holiday">${day.total}f</div></td>`);
+              } else {
+                cells.push(`<td class="px-1 py-1 text-center border-b border-slate-700"><div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-xs font-bold text-purple-300 bg-purple-900/40">H</div></td>`);
+              }
+            } else if (d < emp.effectiveFromDay || d > emp.effectiveToDay || !day.isInFilter) {
+              cells.push(`<td class="px-1 py-1 text-center border-b border-slate-700"><div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-xs text-gray-600">-</div></td>`);
+            } else {
+              const cc = getPointColor(day.points, emp.dailyTarget, scheme);
+              cells.push(`<td class="px-1 py-1 text-center border-b border-slate-700" title="Day ${d}: R${day.retail} P${day.prolinks} S${day.svg} = ${day.points}pts${day.incentive.amount>0?' ₹'+day.incentive.amount:''}"><div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-[10px] font-medium text-white ${cc}">${day.points}p</div></td>`);
+            }
+          }
+
+          return `<tr class="hover:bg-slate-800 cursor-pointer ${idx%2?'bg-slate-900/50':''}" onclick="showEmployeePopup('${emp.id}')">
+            <td class="px-4 py-1 border-b border-slate-700">
+              <div class="flex items-center gap-1"><div class="min-w-0">
+                <div class="font-medium text-sm truncate">${emp.name}</div>
+                <div class="text-xs text-gray-500 flex items-center gap-1">(${emp.id})${emp.isNewJoiner?`<span class="px-1 bg-blue-600 rounded text-[10px]">🆕${emp.joinerDate?.split('-')[2]||''}</span>`:''}${emp.isResigned?`<span class="px-1 bg-orange-600 rounded text-[10px]">🚪${emp.resignedDate?.split('-')[2]||''}</span>`:''}</div>
+              </div>${emp.alerts.map(a=>`<span title="${a.message}">${a.icon}</span>`).join('')}</div>
+            </td>
+            <td class="px-1 py-1 text-center border-b border-slate-700 font-bold text-xs">${emp.dailyTarget}</td>
+            <td class="px-1 py-1 text-center border-b border-slate-700 text-sm ${emp.trend==='up'?'text-emerald-400':emp.trend==='down'?'text-red-400':'text-gray-400'}">${emp.trend==='up'?'↑':emp.trend==='down'?'↓':'→'}</td>
+            ${cells.join('')}
+            <td class="px-2 py-1 text-center font-bold border-b border-slate-700 text-cyan-400 text-xs">${emp.totalDone}</td>
+            <td class="px-2 py-1 text-center font-bold border-b border-slate-700 text-purple-400 text-xs">${emp.totalPoints}</td>
+            <td class="px-2 py-1 text-center border-b border-slate-700 text-xs">${emp.targetRequired}</td>
+            <td class="px-2 py-1 text-center font-bold border-b border-slate-700 text-xs ${emp.shortfall>0?'text-red-400':'text-emerald-400'}">${emp.shortfall>0?'-'+emp.shortfall:'0'}</td>
+            <td class="px-2 py-1 text-center border-b border-slate-700"><span class="font-bold text-xs ${emp.achievementPct>=100?'text-emerald-400':emp.achievementPct>=80?'text-amber-400':'text-red-400'}">${emp.achievementPct.toFixed(0)}%</span></td>
+            <td class="px-2 py-1 text-center border-b border-slate-700 text-amber-400 font-bold text-xs">₹${emp.totalEarnings}</td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
+    // ================================================================
+    // SECTION 24: FOOTER STATS
+    // ================================================================
+    function renderFooterStats() {
+      const emps = appData.employees;
+      const s = appData.teamStats;
+      document.getElementById('footer-stats').innerHTML = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="font-semibold mb-3">📊 Performance Distribution</div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-emerald-400">⭐ Exceeding (≥110%)</span><span class="font-bold">${emps.filter(e=>e.achievementPct>=110).length}</span></div>
+            <div class="flex justify-between"><span class="text-emerald-400">✅ On Track (100-109%)</span><span class="font-bold">${emps.filter(e=>e.achievementPct>=100&&e.achievementPct<110).length}</span></div>
+            <div class="flex justify-between"><span class="text-amber-400">⚠️ At Risk (80-99%)</span><span class="font-bold">${emps.filter(e=>e.achievementPct>=80&&e.achievementPct<100).length}</span></div>
+            <div class="flex justify-between"><span class="text-red-400">🔴 Critical (&lt;80%)</span><span class="font-bold">${emps.filter(e=>e.achievementPct<80).length}</span></div>
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="font-semibold mb-3">💰 Incentive Summary</div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-emerald-400">Earning Incentive</span><span class="font-bold">${s.earningIncentive}</span></div>
+            <div class="flex justify-between"><span class="text-emerald-400">💼 Working Incentive</span><span class="font-bold text-emerald-400">₹${s.totalWorkingIncentive?.toLocaleString()||0}</span></div>
+            <div class="flex justify-between"><span class="text-purple-400">🎁 Holiday Pay</span><span class="font-bold text-purple-400">₹${s.totalHolidayPay?.toLocaleString()||0}</span></div>
+            <div class="flex justify-between border-t border-slate-700 pt-2 mt-2"><span class="text-amber-400 font-semibold">💵 Total Earnings</span><span class="font-bold text-amber-400">₹${s.totalEarnings?.toLocaleString()||0}</span></div>
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="font-semibold mb-3">👥 Team Summary</div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">Total Employees</span><span class="font-bold">${s.total}</span></div>
+            <div class="flex justify-between"><span class="text-blue-400">🆕 New Joiners</span><span class="font-bold">${s.newJoinersCount}</span></div>
+            <div class="flex justify-between"><span class="text-orange-400">🚪 Resigned</span><span class="font-bold">${s.resignedCount}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Avg Achievement</span><span class="font-bold ${s.avgAchievement>=100?'text-emerald-400':'text-amber-400'}">${s.avgAchievement?.toFixed(1)||0}%</span></div>
+          </div>
+        </div>
+      `;
+    }
+
+    
+
+    // ================================================================
+    // SECTION 25: EMPLOYEE POPUP
+    // ================================================================
+    function showEmployeePopup(empId) {
+      const emp = appData.employees.find(e => e.id === empId);
+      if (!emp) return;
+
+      document.getElementById('popup-employee-name').textContent = emp.name;
+      document.getElementById('popup-employee-id').textContent = `(${emp.id}) • Target: ${emp.dailyTarget} • Working Days: ${emp.workingDays}`;
+
+      document.getElementById('popup-summary').innerHTML = `
+        <div class="text-center"><div class="text-xs text-gray-400">Total Output</div><div class="text-xl font-bold text-cyan-400">${emp.totalDone}</div></div>
+        <div class="text-center"><div class="text-xs text-gray-400">Total Points</div><div class="text-xl font-bold text-purple-400">${emp.totalPoints}</div></div>
+        <div class="text-center"><div class="text-xs text-gray-400">Achievement</div><div class="text-xl font-bold ${emp.achievementPct>=100?'text-emerald-400':'text-amber-400'}">${emp.achievementPct.toFixed(1)}%</div></div>
+        <div class="text-center"><div class="text-xs text-gray-400">Shortfall</div><div class="text-xl font-bold ${emp.shortfall>0?'text-red-400':'text-emerald-400'}">${emp.shortfall>0?'-'+emp.shortfall:'0'}</div></div>
+      `;
+
+      const wb = emp.workingDayBreakdown || [];
+      if (wb.length > 0) {
+        document.getElementById('popup-working-breakdown').innerHTML = wb.map(d => `
+          <div class="flex items-center justify-between p-2 rounded ${d.amount>0?'bg-emerald-900/20':'bg-slate-800'}">
+            <div class="flex items-center gap-3"><span class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs font-bold">${d.day}</span><span class="text-xs text-gray-400">R${d.retail} P${d.prolinks} S${d.svg}</span></div>
+            <div class="flex items-center gap-4"><span class="text-purple-400 font-medium">${d.points}pts</span><span class="text-xs text-gray-500">× ₹${d.rate}</span><span class="font-bold ${d.amount>0?'text-emerald-400':'text-gray-500'}">₹${d.amount}</span></div>
+          </div>
+        `).join('');
+      } else {
+        document.getElementById('popup-working-breakdown').innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No working day data</p>';
+      }
+      document.getElementById('popup-working-total').innerHTML = `<span class="text-emerald-400">Working Days Incentive:</span><span class="text-emerald-400">₹${emp.workingIncentive}</span>`;
+
+      const hb = emp.holidayBreakdown || [];
+      if (hb.length > 0) {
+        document.getElementById('popup-holiday-breakdown').innerHTML = hb.map(d => `
+          <div class="flex items-center justify-between p-2 rounded bg-purple-900/20">
+            <div class="flex items-center gap-3"><span class="w-8 h-8 rounded bg-purple-700/50 flex items-center justify-center text-xs font-bold">${d.day}</span><span class="text-xs text-gray-400">${d.isSunday?'Sunday':'Holiday'}: R${d.retail} P${d.prolinks} S${d.svg}</span></div>
+            <div class="flex items-center gap-2"><span class="text-xs text-gray-400">${d.total} files</span><span class="font-bold text-purple-400">₹${d.pay}</span></div>
+          </div>
+        `).join('');
+      } else {
+        document.getElementById('popup-holiday-breakdown').innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No holiday work</p>';
+      }
+      document.getElementById('popup-holiday-total').innerHTML = `<span class="text-purple-400">Holiday/Sunday Pay:</span><span class="text-purple-400">₹${emp.holidayPay}</span>`;
+      document.getElementById('popup-grand-total').textContent = '₹' + emp.totalEarnings;
+
+      openModal('employee-popup');
+    }
+
+    // ================================================================
+    // SECTION 26: HOLIDAY MANAGEMENT
+    // ================================================================
+    function renderHolidayList() {
+      const year = document.getElementById('holiday-year-select').value;
+      const yh = holidays.filter(h => h.date.startsWith(year)).sort((a,b) => a.date.localeCompare(b.date));
+      const container = document.getElementById('holiday-list');
+      if (yh.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No holidays for ' + year + '</p>';
+      } else {
+        container.innerHTML = yh.map(h => {
+          const dt = new Date(h.date + 'T00:00:00');
+          const dn = dt.toLocaleDateString('en-US', { weekday: 'short' });
+          const fd = dt.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+          return `<div class="flex items-center justify-between p-2 bg-slate-800 rounded-lg group">
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-purple-700/50 flex items-center justify-center text-xs font-bold text-purple-300">${dn}</div><div><div class="font-medium text-sm">${h.name}</div><div class="text-xs text-gray-400">${fd}</div></div></div>
+            <button onclick="removeHoliday('${h.date}')" class="p-2 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100">🗑️</button>
+          </div>`;
+        }).join('');
+      }
+      document.getElementById('holiday-count').textContent = yh.length;
+    }
+
+    function addHoliday() {
+      const date = document.getElementById('holiday-date').value;
+      const name = document.getElementById('holiday-name').value.trim();
+      if (!date || !name) return alert('Enter both date and name');
+      if (holidays.some(h => h.date === date)) return alert('Holiday exists');
+      holidays.push({ date, name });
+      holidays.sort((a,b) => a.date.localeCompare(b.date));
+      saveAllData();
+      document.getElementById('holiday-date').value = '';
+      document.getElementById('holiday-name').value = '';
+      renderHolidayList();
+    }
+
+    function removeHoliday(date) {
+      holidays = holidays.filter(h => h.date !== date);
+      saveAllData();
+      renderHolidayList();
+    }
+
+    function clearAllHolidays() {
+      const year = document.getElementById('holiday-year-select').value;
+      if (confirm('Clear all holidays for ' + year + '?')) {
+        holidays = holidays.filter(h => !h.date.startsWith(year));
+        saveAllData();
+        renderHolidayList();
+      }
+    }
+
+    function bulkImportHolidays() {
+      const input = document.getElementById('bulk-holiday-input').value.trim();
+      if (!input) return;
+      let added = 0;
+      input.split('\n').filter(l => l.trim()).forEach(line => {
+        const parts = line.split(',').map(p => p.trim());
+        if (parts.length >= 2 && parts[0].match(/^\d{4}-\d{2}-\d{2}$/) && !holidays.some(h => h.date === parts[0])) {
+          holidays.push({ date: parts[0], name: parts.slice(1).join(', ') });
+          added++;
+        }
+      });
+      holidays.sort((a,b) => a.date.localeCompare(b.date));
+      saveAllData();
+      document.getElementById('bulk-holiday-input').value = '';
+      renderHolidayList();
+      alert('Imported ' + added + ' holidays');
+    }
+
+    // ================================================================
+    // SECTION 27: JOINER MANAGEMENT
+    // ================================================================
+    function renderJoinerList() {
+      const container = document.getElementById('joiner-list');
+      const empty = document.getElementById('joiner-empty');
+      if (newJoiners.length === 0) { container.innerHTML = ''; empty.classList.remove('hidden'); }
+      else {
+        empty.classList.add('hidden');
+        container.innerHTML = newJoiners.map(j => {
+          const fd = new Date(j.date + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+          return `<div class="flex items-center justify-between p-3 bg-slate-800 rounded-lg group">
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-blue-600/30 flex items-center justify-center text-lg">🆕</div><div><div class="font-medium text-sm">${j.name}</div><div class="text-xs text-gray-400">(${j.id}) • Joined: ${fd}</div></div></div>
+            <button onclick="removeJoiner('${j.id}')" class="p-2 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100">🗑️</button>
+          </div>`;
+        }).join('');
+      }
+      document.getElementById('joiner-count').textContent = newJoiners.length;
+    }
+
+    function addJoiner() {
+      const name = document.getElementById('joiner-name').value.trim();
+      let id = document.getElementById('joiner-id').value.trim().toUpperCase();
+      const date = document.getElementById('joiner-date').value;
+      if (!name || !id || !date) return alert('Fill all fields');
+      if (!id.startsWith('PR')) id = 'PR' + id.replace(/\D/g, '');
+      if (newJoiners.some(j => j.id === id)) return alert('Already exists');
+      newJoiners.push({ name, id, date });
+      saveAllData();
+      document.getElementById('joiner-name').value = '';
+      document.getElementById('joiner-id').value = '';
+      document.getElementById('joiner-date').value = '';
+      renderJoinerList();
+    }
+
+    function removeJoiner(id) {
+      newJoiners = newJoiners.filter(j => j.id !== id);
+      saveAllData();
+      renderJoinerList();
+    }
+
+    // ================================================================
+    // SECTION 28: RESIGNED MANAGEMENT
+    // ================================================================
+    function renderResignedList() {
+      const container = document.getElementById('resigned-list');
+      const empty = document.getElementById('resigned-empty');
+      if (resignedEmployees.length === 0) { container.innerHTML = ''; empty.classList.remove('hidden'); }
+      else {
+        empty.classList.add('hidden');
+        container.innerHTML = resignedEmployees.map(r => {
+          const fd = new Date(r.date + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+          return `<div class="flex items-center justify-between p-3 bg-slate-800 rounded-lg group">
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-orange-600/30 flex items-center justify-center text-lg">🚪</div><div><div class="font-medium text-sm">${r.name}</div><div class="text-xs text-gray-400">(${r.id}) • Last: ${fd}</div></div></div>
+            <button onclick="removeResigned('${r.id}')" class="p-2 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100">🗑️</button>
+          </div>`;
+        }).join('');
+      }
+      document.getElementById('resigned-count').textContent = resignedEmployees.length;
+    }
+
+    function addResigned() {
+      const name = document.getElementById('resigned-name').value.trim();
+      let id = document.getElementById('resigned-id').value.trim().toUpperCase();
+      const date = document.getElementById('resigned-date').value;
+      if (!name || !id || !date) return alert('Fill all fields');
+      if (!id.startsWith('PR')) id = 'PR' + id.replace(/\D/g, '');
+      if (resignedEmployees.some(r => r.id === id)) return alert('Already exists');
+      resignedEmployees.push({ name, id, date });
+      saveAllData();
+      document.getElementById('resigned-name').value = '';
+      document.getElementById('resigned-id').value = '';
+      document.getElementById('resigned-date').value = '';
+      renderResignedList();
+    }
+
+    function removeResigned(id) {
+      resignedEmployees = resignedEmployees.filter(r => r.id !== id);
+      saveAllData();
+      renderResignedList();
+    }
+
+    // ================================================================
+    // SECTION 29: SCHEME MANAGEMENT
+    // ================================================================
+    function renderSchemeModal() {
+      const sel = document.getElementById('scheme-selector');
+      sel.innerHTML = incentiveSchemes.map(s => `<option value="${s.id}">${s.name} (${s.validFrom} to ${s.validTo})</option>`).join('');
+      if (currentSchemeId) sel.value = currentSchemeId;
+      else if (incentiveSchemes.length > 0) { currentSchemeId = incentiveSchemes[0].id; sel.value = currentSchemeId; }
+      loadSchemeToForm();
+      document.getElementById('scheme-count').textContent = incentiveSchemes.length;
+    }
+
+    function loadSchemeToForm() {
+      const sid = document.getElementById('scheme-selector').value;
+      currentSchemeId = sid;
+      const s = incentiveSchemes.find(x => x.id === sid) || DEFAULT_SCHEME;
+      document.getElementById('scheme-name').value = s.name || '';
+      document.getElementById('scheme-from').value = s.validFrom || '';
+      document.getElementById('scheme-to').value = s.validTo || '';
+      document.getElementById('point-leadgen').value = s.points?.leadgen || 1;
+      document.getElementById('point-prolink').value = s.points?.prolink || 2;
+      document.getElementById('point-svg').value = s.points?.svg || 1;
+      document.getElementById('t8-min-points').value = s.target8?.minPoints || 7;
+      document.getElementById('t8-target-points').value = s.target8?.targetPoints || 8;
+      document.getElementById('t8-exceed-points').value = s.target8?.exceedPoints || 9;
+      document.getElementById('t8-min-rate').value = s.target8?.minRate || 7;
+      document.getElementById('t8-target-rate').value = s.target8?.targetRate || 8;
+      document.getElementById('t8-exceed-rate').value = s.target8?.exceedRate || 9;
+      document.getElementById('t10-min-points').value = s.target10?.minPoints || 9;
+      document.getElementById('t10-target-points').value = s.target10?.targetPoints || 10;
+      document.getElementById('t10-exceed-points').value = s.target10?.exceedPoints || 11;
+      document.getElementById('t10-min-rate').value = s.target10?.minRate || 7;
+      document.getElementById('t10-target-rate').value = s.target10?.targetRate || 8;
+      document.getElementById('t10-exceed-rate').value = s.target10?.exceedRate || 9;
+      document.getElementById('holiday-leadgen-rate').value = s.holidayRates?.leadgen || 75;
+      document.getElementById('holiday-prolink-rate').value = s.holidayRates?.prolink || 100;
+      document.getElementById('holiday-svg-rate').value = s.holidayRates?.svg || 75;
+    }
+
+    function saveSchemeFromForm() {
+      const sid = currentSchemeId || 'scheme_' + Date.now();
+      const scheme = {
+        id: sid,
+        name: document.getElementById('scheme-name').value || 'Unnamed',
+        validFrom: document.getElementById('scheme-from').value,
+        validTo: document.getElementById('scheme-to').value,
+        points: { leadgen: parseInt(document.getElementById('point-leadgen').value)||1, prolink: parseInt(document.getElementById('point-prolink').value)||2, svg: parseInt(document.getElementById('point-svg').value)||1 },
+        target8: { minPoints: parseInt(document.getElementById('t8-min-points').value)||7, targetPoints: parseInt(document.getElementById('t8-target-points').value)||8, exceedPoints: parseInt(document.getElementById('t8-exceed-points').value)||9, minRate: parseInt(document.getElementById('t8-min-rate').value)||7, targetRate: parseInt(document.getElementById('t8-target-rate').value)||8, exceedRate: parseInt(document.getElementById('t8-exceed-rate').value)||9 },
+        target10: { minPoints: parseInt(document.getElementById('t10-min-points').value)||9, targetPoints: parseInt(document.getElementById('t10-target-points').value)||10, exceedPoints: parseInt(document.getElementById('t10-exceed-points').value)||11, minRate: parseInt(document.getElementById('t10-min-rate').value)||7, targetRate: parseInt(document.getElementById('t10-target-rate').value)||8, exceedRate: parseInt(document.getElementById('t10-exceed-rate').value)||9 },
+        holidayRates: { leadgen: parseInt(document.getElementById('holiday-leadgen-rate').value)||75, prolink: parseInt(document.getElementById('holiday-prolink-rate').value)||100, svg: parseInt(document.getElementById('holiday-svg-rate').value)||75 }
+      };
+      const idx = incentiveSchemes.findIndex(x => x.id === sid);
+      if (idx >= 0) incentiveSchemes[idx] = scheme;
+      else incentiveSchemes.push(scheme);
+      saveAllData();
+      renderSchemeModal();
+      alert('Scheme saved!');
+    }
+
+    function createNewScheme() {
+      const newId = 'scheme_' + Date.now();
+      incentiveSchemes.push({ ...DEFAULT_SCHEME, id: newId, name: 'New Scheme', validFrom: '', validTo: '' });
+      currentSchemeId = newId;
+      saveAllData();
+      renderSchemeModal();
+    }
+
+    function deleteCurrentScheme() {
+      if (incentiveSchemes.length <= 1) return alert('Cannot delete last scheme');
+      if (confirm('Delete this scheme?')) {
+        incentiveSchemes = incentiveSchemes.filter(s => s.id !== currentSchemeId);
+        currentSchemeId = incentiveSchemes[0]?.id;
+        saveAllData();
+        renderSchemeModal();
+      }
+    }
+
+    // ================================================================
+    // SECTION 30: SETTINGS IMPORT/EXPORT
+    // ================================================================
+    function updateSettingsCounts() {
+      document.getElementById('settings-holiday-count').textContent = holidays.length;
+      document.getElementById('settings-joiner-count').textContent = newJoiners.length;
+      document.getElementById('settings-resigned-count').textContent = resignedEmployees.length;
+      document.getElementById('settings-scheme-count').textContent = incentiveSchemes.length;
+    }
+
+    function exportSettings() {
+      const data = { exportDate: new Date().toISOString(), version: '3.0', holidays, newJoiners, resignedEmployees, incentiveSchemes };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'tracker_settings_' + new Date().toISOString().split('T')[0] + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      alert('Settings exported!');
+    }
+
+    function importSettings(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (data.holidays) holidays = data.holidays;
+          if (data.newJoiners) newJoiners = data.newJoiners;
+          if (data.resignedEmployees) resignedEmployees = data.resignedEmployees;
+          if (data.incentiveSchemes) incentiveSchemes = data.incentiveSchemes;
+          if (incentiveSchemes.length > 0) currentSchemeId = incentiveSchemes[0].id;
+          saveAllData();
+          updateSettingsCounts();
+          alert('Settings imported!');
+        } catch (err) { alert('Invalid file'); console.error(err); }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    }
+
+    // ================================================================
+    // SECTION 31: PDF EXPORT
+    // ================================================================
+    function downloadPDF(withIncentive) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+      const title = appData.isYTD ? 'YTD Performance Report' : 'MTD Performance Report';
+      doc.setFontSize(18);
+      doc.text(title, 14, 15);
+      doc.setFontSize(10);
+      doc.text('Date: ' + appData.dateRangeText + ' | Working Days: ' + appData.workingDays, 14, 22);
+
+      const emps = getFilteredSortedEmployees();
+      let headers, body;
+
+      if (withIncentive) {
+        headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', 'Gap', '%', 'W.Inc', 'H.Pay', 'Total']];
+        body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%', '₹' + e.workingIncentive, '₹' + e.holidayPay, '₹' + e.totalEarnings]);
+      } else {
+        headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', 'Gap', '%']];
+        body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%']);
+      }
+
+      doc.autoTable({ head: headers, body: body, startY: 28, styles: { fontSize: 8 }, headStyles: { fillColor: [30, 41, 59] } });
+
+      const s = appData.teamStats;
+      const finalY = doc.lastAutoTable.finalY + 10;
+      doc.setFontSize(10);
+      doc.text('Team Summary:', 14, finalY);
+      doc.setFontSize(9);
+      doc.text('Total Employees: ' + s.total + ' | Total Output: ' + s.totalOutput + ' | Total Points: ' + s.totalPoints + ' | Avg: ' + s.avgAchievement.toFixed(1) + '%', 14, finalY + 6);
+      if (withIncentive) {
+        doc.text('Working Incentive: ₹' + s.totalWorkingIncentive + ' | Holiday Pay: ₹' + s.totalHolidayPay + ' | Total Earnings: ₹' + s.totalEarnings, 14, finalY + 12);
+      }
+
+      doc.save('performance_report_' + (withIncentive ? 'with_incentive' : 'without_incentive') + '.pdf');
+    }
+
+    // ================================================================
+    // SECTION 32: EXCEL EXPORT
+    // ================================================================
+    function downloadExcel() {
+      const emps = getFilteredSortedEmployees();
+      const data = [['Name', 'ID', 'Target', 'Output', 'Points', 'Target Req', 'Shortfall', 'Achievement %', 'Working Incentive', 'Holiday Pay', 'Total Earnings']];
+      emps.forEach(e => {
+        data.push([e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.shortfall, e.achievementPct.toFixed(2), e.workingIncentive, e.holidayPay, e.totalEarnings]);
+      });
+
+      const s = appData.teamStats;
+      data.push([]);
+      data.push(['TEAM SUMMARY']);
+      data.push(['Total Employees', s.total]);
+      data.push(['Total Output', s.totalOutput]);
+      data.push(['Total Points', s.totalPoints]);
+      data.push(['Avg Achievement', s.avgAchievement.toFixed(2) + '%']);
+      data.push(['Working Incentive', '₹' + s.totalWorkingIncentive]);
+      data.push(['Holiday Pay', '₹' + s.totalHolidayPay]);
+      data.push(['Total Earnings', '₹' + s.totalEarnings]);
+
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Performance Report');
+      XLSX.writeFile(wb, 'performance_report_' + appData.dateRangeText.replace(/\s/g, '_') + '.xlsx');
+    }
+
+    // ================================================================
+    // END OF JAVASCRIPT
+    // ================================================================
+    
+  </script>
+</body>
+</html>
