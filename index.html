@@ -736,7 +736,80 @@
       document.getElementById('process-ytd-btn').classList.remove('hidden');
     }
 
+    // ================================================================
+    // SECTION 13B: EXCEL DATA PARSING HELPERS
+    // ================================================================
     
+    // Parse month name from Cell F1 (e.g., "JANUARY 2026" → {month: 1, year: 2026})
+    function parseMonthFromCellF1(jsonData) {
+      const monthYearStr = jsonData[0]?.[5] || '';  // Cell F1 contains "JANUARY 2026"
+      const monthNames = {
+        'JANUARY': 1, 'FEBRUARY': 2, 'MARCH': 3, 'APRIL': 4, 'MAY': 5, 'JUNE': 6,
+        'JULY': 7, 'AUGUST': 8, 'SEPTEMBER': 9, 'OCTOBER': 10, 'NOVEMBER': 11, 'DECEMBER': 12
+      };
+      
+      const parts = monthYearStr.toString().toUpperCase().trim().split(/\s+/);
+      const monthName = parts[0] || '';
+      const year = parseInt(parts[1]) || new Date().getFullYear();
+      const month = monthNames[monthName] || 1;
+      
+      return { month, year };
+    }
+    
+    // Get number of days in a month
+    function getDaysInMonth(year, month) {
+      return new Date(year, month, 0).getDate();
+    }
+    
+    // Auto-detect the last day with data by scanning all employee rows
+    function detectLastDayWithData(jsonData, maxDays) {
+      let lastDayWithData = 1;
+      
+      // Scan all employee rows (starting from row 4)
+      for (let i = 4; i < jsonData.length - 2; i++) {
+        const row = jsonData[i];
+        if (!row || !row[1]) continue;
+        const decoName = row[1]?.toString() || '';
+        if (!decoName.match(/\(PR\d+\)/)) continue;
+        
+        // Check each day's columns for any data
+        for (let day = 1; day <= maxDays; day++) {
+          const baseCol = 7 + (day - 1) * 3;
+          const retail = parseInt(row[baseCol]) || 0;
+          const prolinks = parseInt(row[baseCol + 1]) || 0;
+          const svg = parseInt(row[baseCol + 2]) || 0;
+          
+          if (retail > 0 || prolinks > 0 || svg > 0) {
+            lastDayWithData = Math.max(lastDayWithData, day);
+          }
+        }
+      }
+      
+      return lastDayWithData;
+    }
+    
+    // Get the effective last day for processing (handles both complete and partial months)
+    function getEffectiveLastDay(jsonData) {
+      const { month, year } = parseMonthFromCellF1(jsonData);
+      const daysInMonth = getDaysInMonth(year, month);
+      
+      // Detect last day with actual data
+      const lastDayWithData = detectLastDayWithData(jsonData, daysInMonth);
+      
+      // For completed months, use all days up to daysInMonth
+      // For partial months, use lastDayWithData
+      // We determine if month is complete by checking if last day has data OR if we're past that month
+      const today = new Date();
+      const isCurrentMonth = (today.getFullYear() === year && today.getMonth() + 1 === month);
+      
+      if (isCurrentMonth) {
+        // For current month, use the last day with data (or today, whichever is less)
+        return Math.min(lastDayWithData, today.getDate());
+      } else {
+        // For past months, use all days in the month (complete month)
+        return daysInMonth;
+      }
+    }
 
     // ================================================================
     // SECTION 14: FILE PARSING
@@ -786,11 +859,17 @@
     // SECTION 15: MTD DATA PROCESSING
     // ================================================================
     function processData(jsonData) {
-      const reportDateStr = jsonData[0]?.[0] || '';
-      const dateMatch = reportDateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-      const currentDay = dateMatch ? parseInt(dateMatch[1]) : 15;
-      const currentMonth = dateMatch ? parseInt(dateMatch[2]) : 1;
-      const currentYear = dateMatch ? parseInt(dateMatch[3]) : 2026;
+      // NEW: Parse month/year from Cell F1 (e.g., "JANUARY 2026") instead of Cell A1
+      const { month: currentMonth, year: currentYear } = parseMonthFromCellF1(jsonData);
+      const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+      
+      // NEW: Auto-detect the last day with data
+      const lastDayWithData = detectLastDayWithData(jsonData, daysInMonth);
+      
+      // Determine effective last day: for past months use full month, for current month use last day with data
+      const today = new Date();
+      const isCurrentMonth = (today.getFullYear() === currentYear && today.getMonth() + 1 === currentMonth);
+      const currentDay = isCurrentMonth ? Math.max(lastDayWithData, 1) : daysInMonth;
 
       const scheme = getSchemeForMonth(currentYear, currentMonth);
       // Parse date filter - use split to avoid timezone issues
@@ -935,11 +1014,18 @@
       const empMap = new Map();
 
       allMonthsData.forEach(jsonData => {
-        const reportDateStr = jsonData[0]?.[0] || '';
-        const dateMatch = reportDateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-        const currentDay = dateMatch ? parseInt(dateMatch[1]) : 31;
-        const currentMonth = dateMatch ? parseInt(dateMatch[2]) : 1;
-        const currentYear = dateMatch ? parseInt(dateMatch[3]) : 2026;
+        // NEW: Parse month/year from Cell F1 (e.g., "JANUARY 2026") instead of Cell A1
+        const { month: currentMonth, year: currentYear } = parseMonthFromCellF1(jsonData);
+        const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+        
+        // NEW: Auto-detect the last day with data
+        const lastDayWithData = detectLastDayWithData(jsonData, daysInMonth);
+        
+        // Determine effective last day: for past months use full month, for current month use last day with data
+        const today = new Date();
+        const isCurrentMonth = (today.getFullYear() === currentYear && today.getMonth() + 1 === currentMonth);
+        const currentDay = isCurrentMonth ? Math.max(lastDayWithData, 1) : daysInMonth;
+        
         const scheme = getSchemeForMonth(currentYear, currentMonth);
 
         for (let i = 4; i < jsonData.length - 2; i++) {
