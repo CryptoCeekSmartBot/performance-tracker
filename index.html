@@ -130,6 +130,7 @@
             </div>
             <select id="filter-select" class="bg-slate-800 border border-slate-700 text-gray-100 px-3 py-2 rounded-lg text-sm">
               <option value="all">All Status</option>
+              <option value="targetachieved">🎯 Target Achieved</option>
               <option value="ontrack">✅ On Track</option>
               <option value="atrisk">⚠️ At Risk</option>
               <option value="critical">🔴 Critical</option>
@@ -341,6 +342,19 @@
                   <div><label class="block text-xs text-gray-400 mb-1">SVG</label><input type="number" id="holiday-svg-rate" value="75" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
                 </div>
               </div>
+              <div class="bg-gradient-to-br from-amber-900/20 to-orange-900/20 border border-amber-700/30 rounded-xl p-4">
+                <h3 class="font-semibold text-amber-400 mb-3">🎯 Achievement Thresholds</h3>
+                <p class="text-xs text-gray-400 mb-3">Configure the percentage thresholds for target achievement status</p>
+                <div class="grid grid-cols-2 gap-4">
+                  <div><label class="block text-xs text-gray-400 mb-1">🟢 Target Achieved (%)</label><input type="number" id="threshold-target" value="95" min="50" max="100" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">🟡 At Risk (%)</label><input type="number" id="threshold-atrisk" value="80" min="50" max="100" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                </div>
+                <div class="mt-3 text-xs text-gray-500">
+                  <span class="text-emerald-400">● Green:</span> ≥ Target % | 
+                  <span class="text-amber-400">● Yellow:</span> ≥ At Risk % | 
+                  <span class="text-red-400">● Red:</span> Below At Risk %
+                </div>
+              </div>
             </div>
           </div>
           <div class="px-6 py-4 border-t border-slate-700 bg-slate-800/50 flex justify-between items-center">
@@ -461,7 +475,8 @@
       points: { leadgen: 1, prolink: 2, svg: 1 },
       target8: { minPoints: 7, targetPoints: 8, exceedPoints: 9, minRate: 7, targetRate: 8, exceedRate: 9 },
       target10: { minPoints: 9, targetPoints: 10, exceedPoints: 11, minRate: 7, targetRate: 8, exceedRate: 9 },
-      holidayRates: { leadgen: 75, prolink: 100, svg: 75 }
+      holidayRates: { leadgen: 75, prolink: 100, svg: 75 },
+      thresholds: { targetAchieved: 95, atRisk: 80 }
     };
 
     let holidays = [];
@@ -967,6 +982,11 @@
         const targetRequired = dailyTarget * workingDays;
         const shortfall = Math.max(0, targetRequired - totalDone);
         const achievementPct = targetRequired > 0 ? (totalDone / targetRequired * 100) : 0;
+        
+        // Calculate threshold-based target (95% or configured value)
+        const thresholds = scheme.thresholds || { targetAchieved: 95, atRisk: 80 };
+        const targetThresholdValue = Math.floor(targetRequired * thresholds.targetAchieved / 100);
+        const isTargetAchieved = totalDone >= targetThresholdValue;
 
         const workingDaysData = dailyData.filter(d => d.isActive && d.isInFilter && d.isInEmpRange && !d.isNonWorking);
         const trend = calcTrend(workingDaysData.slice(-5));
@@ -977,6 +997,7 @@
           id: empId, fullName: decoName, dailyTarget, dailyData,
           totalDone, totalRetail, totalProlinks, totalSvg, totalPoints,
           targetRequired, shortfall, achievementPct, workingDays,
+          targetThresholdValue, isTargetAchieved,
           workingIncentive: totalWorkingIncentive, holidayPay: totalHolidayPay,
           totalEarnings: totalWorkingIncentive + totalHolidayPay,
           workingDayBreakdown, holidayBreakdown,
@@ -1000,7 +1021,7 @@
         workingDays: globalWD,
         leaderboard: sorted.slice(0, 5),
         champion: sorted[0],
-        teamStats: calcTeamStats(employees, globalWD),
+        teamStats: calcTeamStats(employees, globalWD, scheme),
         isYTD: false
       };
 
@@ -1078,15 +1099,24 @@
         }
       });
 
-      const employees = Array.from(empMap.values()).map(emp => ({
-        ...emp,
-        shortfall: Math.max(0, emp.targetRequired - emp.totalDone),
-        achievementPct: emp.targetRequired > 0 ? (emp.totalDone / emp.targetRequired * 100) : 0,
-        totalEarnings: emp.workingIncentive + emp.holidayPay,
-        trend: 'stable', alerts: [],
-        isNewJoiner: !!getJoinerInfo(emp.id),
-        isResigned: !!getResignedInfo(emp.id)
-      }));
+      const ytdScheme = incentiveSchemes[0] || DEFAULT_SCHEME;
+      const thresholds = ytdScheme.thresholds || { targetAchieved: 95, atRisk: 80 };
+      
+      const employees = Array.from(empMap.values()).map(emp => {
+        const targetThresholdValue = Math.floor(emp.targetRequired * thresholds.targetAchieved / 100);
+        const isTargetAchieved = emp.totalDone >= targetThresholdValue;
+        return {
+          ...emp,
+          shortfall: Math.max(0, emp.targetRequired - emp.totalDone),
+          achievementPct: emp.targetRequired > 0 ? (emp.totalDone / emp.targetRequired * 100) : 0,
+          targetThresholdValue,
+          isTargetAchieved,
+          totalEarnings: emp.workingIncentive + emp.holidayPay,
+          trend: 'stable', alerts: [],
+          isNewJoiner: !!getJoinerInfo(emp.id),
+          isResigned: !!getResignedInfo(emp.id)
+        };
+      });
 
       const sorted = [...employees].sort((a, b) => b.achievementPct - a.achievementPct);
       const avgWD = employees.length > 0 ? Math.round(employees.reduce((s, e) => s + e.workingDays, 0) / employees.length) : 0;
@@ -1094,13 +1124,13 @@
       appData = {
         employees, currentDay: 0, currentMonth: 0, currentYear: 2026,
         filterFromDay: 1, filterToDay: 31,
-        scheme: incentiveSchemes[0] || DEFAULT_SCHEME,
+        scheme: ytdScheme,
         reportDate: 'YTD Report',
         dateRangeText: `${ytdFiles.length} Months Combined`,
         workingDays: avgWD,
         leaderboard: sorted.slice(0, 5),
         champion: sorted[0],
-        teamStats: calcTeamStats(employees, avgWD),
+        teamStats: calcTeamStats(employees, avgWD, ytdScheme),
         isYTD: true
       };
 
@@ -1125,23 +1155,26 @@
       const alerts = [];
       const last3 = wdData.slice(-3);
       const slab = target === 10 ? scheme.target10 : scheme.target8;
+      const thresholds = scheme?.thresholds || { targetAchieved: 95, atRisk: 80 };
       if (last3.length === 3 && last3.every(d => d.points < slab.minPoints)) alerts.push({ type: 'critical', icon: '🔴', message: '3+ days no incentive' });
-      if (pct < 80 && wdData.length > 5) alerts.push({ type: 'warning', icon: '⚠️', message: 'At risk' });
+      if (pct < thresholds.atRisk && wdData.length > 5) alerts.push({ type: 'warning', icon: '⚠️', message: 'At risk' });
       const lastDay = wdData[wdData.length - 1];
       if (lastDay && lastDay.total === 0) alerts.push({ type: 'inactive', icon: '👻', message: 'No output today' });
       if (pct >= 110) alerts.push({ type: 'star', icon: '⭐', message: 'Star performer' });
       return alerts;
     }
 
-    function calcTeamStats(employees, wd) {
+    function calcTeamStats(employees, wd, scheme) {
       const total = employees.length;
       if (total === 0) return {};
+      const thresholds = scheme?.thresholds || { targetAchieved: 95, atRisk: 80 };
       return {
         total,
         avgAchievement: employees.reduce((a, b) => a + b.achievementPct, 0) / total,
-        onTrack: employees.filter(e => e.achievementPct >= 100).length,
-        atRisk: employees.filter(e => e.achievementPct >= 80 && e.achievementPct < 100).length,
-        critical: employees.filter(e => e.achievementPct < 80).length,
+        onTrack: employees.filter(e => e.achievementPct >= thresholds.targetAchieved).length,
+        atRisk: employees.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < thresholds.targetAchieved).length,
+        critical: employees.filter(e => e.achievementPct < thresholds.atRisk).length,
+        targetAchievedCount: employees.filter(e => e.isTargetAchieved).length,
         totalOutput: employees.reduce((a, b) => a + b.totalDone, 0),
         totalTarget: employees.reduce((a, b) => a + b.targetRequired, 0),
         totalPoints: employees.reduce((a, b) => a + b.totalPoints, 0),
@@ -1151,7 +1184,8 @@
         workingDays: wd,
         newJoinersCount: employees.filter(e => e.isNewJoiner).length,
         resignedCount: employees.filter(e => e.isResigned).length,
-        earningIncentive: employees.filter(e => e.workingIncentive > 0).length
+        earningIncentive: employees.filter(e => e.workingIncentive > 0).length,
+        thresholds
       };
     }
 
@@ -1195,15 +1229,16 @@
     // ================================================================
     function renderSummaryCards() {
       const s = appData.teamStats;
+      const thresholdPct = s.thresholds?.targetAchieved || 95;
       document.getElementById('summary-cards').innerHTML = `
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-gray-500 mb-1">Employees</div><div class="text-xl font-bold">${s.total}</div></div>
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-emerald-400 mb-1">Working Days</div><div class="text-xl font-bold text-emerald-400">${s.workingDays}</div></div>
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-cyan-400 mb-1">Total Output</div><div class="text-xl font-bold text-cyan-400">${s.totalOutput?.toLocaleString()||0}</div></div>
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-purple-400 mb-1">Total Points</div><div class="text-xl font-bold text-purple-400">${s.totalPoints?.toLocaleString()||0}</div></div>
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-gray-500 mb-1">Avg %</div><div class="text-xl font-bold">${s.avgAchievement?.toFixed(1)||0}%</div></div>
+        <div class="bg-gradient-to-br from-amber-900/30 to-orange-900/20 border border-amber-700/50 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-amber-400 mb-1">🎯 ${thresholdPct}% Achieved</div><div class="text-xl font-bold text-amber-400">${s.targetAchievedCount||0}<span class="text-sm text-gray-400">/${s.total}</span></div></div>
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-emerald-400 mb-1">✅ On Track</div><div class="text-xl font-bold text-emerald-400">${s.onTrack}</div></div>
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-red-400 mb-1">🔴 Critical</div><div class="text-xl font-bold text-red-400">${s.critical}</div></div>
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 col-span-1"><div class="text-xs uppercase text-blue-400 mb-1">🆕 Joiners</div><div class="text-xl font-bold text-blue-400">${s.newJoinersCount}</div></div>
         <div class="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 border border-emerald-700/50 rounded-xl p-3 col-span-2"><div class="text-xs uppercase text-emerald-400 mb-1">💼 Working Incentive</div><div class="text-xl font-bold text-emerald-400">₹${s.totalWorkingIncentive?.toLocaleString()||0}</div></div>
         <div class="bg-gradient-to-br from-purple-900/30 to-purple-800/20 border border-purple-700/50 rounded-xl p-3 col-span-2"><div class="text-xs uppercase text-purple-400 mb-1">🎁 Holiday Pay</div><div class="text-xl font-bold text-purple-400">₹${s.totalHolidayPay?.toLocaleString()||0}</div></div>
       `;
@@ -1244,11 +1279,13 @@
     // ================================================================
     function getFilteredSortedEmployees() {
       let list = appData.employees;
+      const thresholds = appData.scheme?.thresholds || { targetAchieved: 95, atRisk: 80 };
       if (searchTerm) list = list.filter(e => e.fullName.toLowerCase().includes(searchTerm.toLowerCase()));
       switch(filterStatus) {
-        case 'ontrack': list = list.filter(e => e.achievementPct >= 100); break;
-        case 'atrisk': list = list.filter(e => e.achievementPct >= 80 && e.achievementPct < 100); break;
-        case 'critical': list = list.filter(e => e.achievementPct < 80); break;
+        case 'targetachieved': list = list.filter(e => e.isTargetAchieved); break;
+        case 'ontrack': list = list.filter(e => e.achievementPct >= thresholds.targetAchieved); break;
+        case 'atrisk': list = list.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < thresholds.targetAchieved); break;
+        case 'critical': list = list.filter(e => e.achievementPct < thresholds.atRisk); break;
         case 'star': list = list.filter(e => e.achievementPct >= 110); break;
         case 'incentive': list = list.filter(e => e.workingIncentive > 0); break;
         case 'newjoiners': list = list.filter(e => e.isNewJoiner); break;
@@ -1285,6 +1322,7 @@
       const employees = getFilteredSortedEmployees();
       const isYTD = appData.isYTD;
       const scheme = appData.scheme;
+      const thresholds = scheme?.thresholds || { targetAchieved: 95, atRisk: 80 };
 
       if (isYTD) {
         document.getElementById('table-header').innerHTML = `<tr>
@@ -1294,6 +1332,8 @@
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-cyan-400">Output</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-purple-400">Points</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">Target</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-amber-400">${thresholds.targetAchieved}%</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">🎯</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">Gap</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">%</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-emerald-400">W.Inc</th>
@@ -1308,8 +1348,10 @@
             <td class="px-3 py-2 text-center font-bold border-b border-slate-700 text-cyan-400">${e.totalDone}</td>
             <td class="px-3 py-2 text-center font-bold border-b border-slate-700 text-purple-400">${e.totalPoints}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700">${e.targetRequired}</td>
+            <td class="px-3 py-2 text-center border-b border-slate-700 text-amber-400 font-medium">${e.targetThresholdValue||0}</td>
+            <td class="px-3 py-2 text-center border-b border-slate-700"><div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-xs font-bold text-white ${e.isTargetAchieved?'cell-green':'cell-red'}">${e.isTargetAchieved?'✓':'✗'}</div></td>
             <td class="px-3 py-2 text-center font-bold border-b border-slate-700 ${e.shortfall>0?'text-red-400':'text-emerald-400'}">${e.shortfall>0?'-'+e.shortfall:'0'}</td>
-            <td class="px-3 py-2 text-center border-b border-slate-700"><span class="font-bold ${e.achievementPct>=100?'text-emerald-400':e.achievementPct>=80?'text-amber-400':'text-red-400'}">${e.achievementPct.toFixed(0)}%</span></td>
+            <td class="px-3 py-2 text-center border-b border-slate-700"><span class="font-bold ${e.achievementPct>=thresholds.targetAchieved?'text-emerald-400':e.achievementPct>=thresholds.atRisk?'text-amber-400':'text-red-400'}">${e.achievementPct.toFixed(0)}%</span></td>
             <td class="px-3 py-2 text-center border-b border-slate-700 text-emerald-400 font-medium">₹${e.workingIncentive}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700 text-purple-400 font-medium">₹${e.holidayPay}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700 text-amber-400 font-bold">₹${e.totalEarnings}</td>
@@ -1331,6 +1373,8 @@
           <th class="px-2 py-2 text-center font-semibold border-b border-slate-700 text-cyan-400">Out</th>
           <th class="px-2 py-2 text-center font-semibold border-b border-slate-700 text-purple-400">Pts</th>
           <th class="px-2 py-2 text-center font-semibold border-b border-slate-700">Req</th>
+          <th class="px-2 py-2 text-center font-semibold border-b border-slate-700 text-amber-400">${thresholds.targetAchieved}%</th>
+          <th class="px-2 py-2 text-center font-semibold border-b border-slate-700">🎯</th>
           <th class="px-2 py-2 text-center font-semibold border-b border-slate-700">Gap</th>
           <th class="px-2 py-2 text-center font-semibold border-b border-slate-700">%</th>
           <th class="px-2 py-2 text-center font-semibold border-b border-slate-700 text-amber-400">₹</th>
@@ -1369,8 +1413,10 @@
             <td class="px-2 py-1 text-center font-bold border-b border-slate-700 text-cyan-400 text-xs">${emp.totalDone}</td>
             <td class="px-2 py-1 text-center font-bold border-b border-slate-700 text-purple-400 text-xs">${emp.totalPoints}</td>
             <td class="px-2 py-1 text-center border-b border-slate-700 text-xs">${emp.targetRequired}</td>
+            <td class="px-2 py-1 text-center border-b border-slate-700 text-amber-400 text-xs font-medium">${emp.targetThresholdValue||0}</td>
+            <td class="px-2 py-1 text-center border-b border-slate-700"><div class="w-6 h-6 mx-auto rounded flex items-center justify-center text-[10px] font-bold text-white ${emp.isTargetAchieved?'cell-green':'cell-red'}">${emp.isTargetAchieved?'✓':'✗'}</div></td>
             <td class="px-2 py-1 text-center font-bold border-b border-slate-700 text-xs ${emp.shortfall>0?'text-red-400':'text-emerald-400'}">${emp.shortfall>0?'-'+emp.shortfall:'0'}</td>
-            <td class="px-2 py-1 text-center border-b border-slate-700"><span class="font-bold text-xs ${emp.achievementPct>=100?'text-emerald-400':emp.achievementPct>=80?'text-amber-400':'text-red-400'}">${emp.achievementPct.toFixed(0)}%</span></td>
+            <td class="px-2 py-1 text-center border-b border-slate-700"><span class="font-bold text-xs ${emp.achievementPct>=thresholds.targetAchieved?'text-emerald-400':emp.achievementPct>=thresholds.atRisk?'text-amber-400':'text-red-400'}">${emp.achievementPct.toFixed(0)}%</span></td>
             <td class="px-2 py-1 text-center border-b border-slate-700 text-amber-400 font-bold text-xs">₹${emp.totalEarnings}</td>
           </tr>`;
         }).join('');
@@ -1651,9 +1697,25 @@
       document.getElementById('holiday-leadgen-rate').value = s.holidayRates?.leadgen || 75;
       document.getElementById('holiday-prolink-rate').value = s.holidayRates?.prolink || 100;
       document.getElementById('holiday-svg-rate').value = s.holidayRates?.svg || 75;
+      document.getElementById('threshold-target').value = s.thresholds?.targetAchieved || 95;
+      document.getElementById('threshold-atrisk').value = s.thresholds?.atRisk || 80;
     }
 
     function saveSchemeFromForm() {
+      // Validate thresholds
+      const targetThreshold = parseInt(document.getElementById('threshold-target').value) || 95;
+      const atRiskThreshold = parseInt(document.getElementById('threshold-atrisk').value) || 80;
+      
+      if (targetThreshold <= atRiskThreshold) {
+        return alert('Target Achieved % must be greater than At Risk %');
+      }
+      if (targetThreshold > 100 || targetThreshold < 50) {
+        return alert('Target Achieved % must be between 50 and 100');
+      }
+      if (atRiskThreshold > 100 || atRiskThreshold < 50) {
+        return alert('At Risk % must be between 50 and 100');
+      }
+      
       const sid = currentSchemeId || 'scheme_' + Date.now();
       const scheme = {
         id: sid,
@@ -1663,7 +1725,8 @@
         points: { leadgen: parseInt(document.getElementById('point-leadgen').value)||1, prolink: parseInt(document.getElementById('point-prolink').value)||2, svg: parseInt(document.getElementById('point-svg').value)||1 },
         target8: { minPoints: parseInt(document.getElementById('t8-min-points').value)||7, targetPoints: parseInt(document.getElementById('t8-target-points').value)||8, exceedPoints: parseInt(document.getElementById('t8-exceed-points').value)||9, minRate: parseInt(document.getElementById('t8-min-rate').value)||7, targetRate: parseInt(document.getElementById('t8-target-rate').value)||8, exceedRate: parseInt(document.getElementById('t8-exceed-rate').value)||9 },
         target10: { minPoints: parseInt(document.getElementById('t10-min-points').value)||9, targetPoints: parseInt(document.getElementById('t10-target-points').value)||10, exceedPoints: parseInt(document.getElementById('t10-exceed-points').value)||11, minRate: parseInt(document.getElementById('t10-min-rate').value)||7, targetRate: parseInt(document.getElementById('t10-target-rate').value)||8, exceedRate: parseInt(document.getElementById('t10-exceed-rate').value)||9 },
-        holidayRates: { leadgen: parseInt(document.getElementById('holiday-leadgen-rate').value)||75, prolink: parseInt(document.getElementById('holiday-prolink-rate').value)||100, svg: parseInt(document.getElementById('holiday-svg-rate').value)||75 }
+        holidayRates: { leadgen: parseInt(document.getElementById('holiday-leadgen-rate').value)||75, prolink: parseInt(document.getElementById('holiday-prolink-rate').value)||100, svg: parseInt(document.getElementById('holiday-svg-rate').value)||75 },
+        thresholds: { targetAchieved: targetThreshold, atRisk: atRiskThreshold }
       };
       const idx = incentiveSchemes.findIndex(x => x.id === sid);
       if (idx >= 0) incentiveSchemes[idx] = scheme;
@@ -1741,20 +1804,21 @@
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'mm', 'a4');
       const title = appData.isYTD ? 'YTD Performance Report' : 'MTD Performance Report';
+      const thresholds = appData.scheme?.thresholds || { targetAchieved: 95, atRisk: 80 };
       doc.setFontSize(18);
       doc.text(title, 14, 15);
       doc.setFontSize(10);
-      doc.text('Date: ' + appData.dateRangeText + ' | Working Days: ' + appData.workingDays, 14, 22);
+      doc.text('Date: ' + appData.dateRangeText + ' | Working Days: ' + appData.workingDays + ' | Target Threshold: ' + thresholds.targetAchieved + '%', 14, 22);
 
       const emps = getFilteredSortedEmployees();
       let headers, body;
 
       if (withIncentive) {
-        headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', 'Gap', '%', 'W.Inc', 'H.Pay', 'Total']];
-        body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%', '₹' + e.workingIncentive, '₹' + e.holidayPay, '₹' + e.totalEarnings]);
+        headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', thresholds.targetAchieved + '%', '🎯', 'Gap', '%', 'W.Inc', 'H.Pay', 'Total']];
+        body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'✓':'✗', e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%', '₹' + e.workingIncentive, '₹' + e.holidayPay, '₹' + e.totalEarnings]);
       } else {
-        headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', 'Gap', '%']];
-        body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%']);
+        headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', thresholds.targetAchieved + '%', '🎯', 'Gap', '%']];
+        body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'✓':'✗', e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%']);
       }
 
       doc.autoTable({ head: headers, body: body, startY: 28, styles: { fontSize: 8 }, headStyles: { fillColor: [30, 41, 59] } });
@@ -1764,7 +1828,7 @@
       doc.setFontSize(10);
       doc.text('Team Summary:', 14, finalY);
       doc.setFontSize(9);
-      doc.text('Total Employees: ' + s.total + ' | Total Output: ' + s.totalOutput + ' | Total Points: ' + s.totalPoints + ' | Avg: ' + s.avgAchievement.toFixed(1) + '%', 14, finalY + 6);
+      doc.text('Total Employees: ' + s.total + ' | Target Achieved: ' + (s.targetAchievedCount||0) + '/' + s.total + ' | Total Output: ' + s.totalOutput + ' | Total Points: ' + s.totalPoints + ' | Avg: ' + s.avgAchievement.toFixed(1) + '%', 14, finalY + 6);
       if (withIncentive) {
         doc.text('Working Incentive: ₹' + s.totalWorkingIncentive + ' | Holiday Pay: ₹' + s.totalHolidayPay + ' | Total Earnings: ₹' + s.totalEarnings, 14, finalY + 12);
       }
@@ -1777,15 +1841,17 @@
     // ================================================================
     function downloadExcel() {
       const emps = getFilteredSortedEmployees();
-      const data = [['Name', 'ID', 'Target', 'Output', 'Points', 'Target Req', 'Shortfall', 'Achievement %', 'Working Incentive', 'Holiday Pay', 'Total Earnings']];
+      const thresholds = appData.scheme?.thresholds || { targetAchieved: 95, atRisk: 80 };
+      const data = [['Name', 'ID', 'Target', 'Output', 'Points', 'Target Req', thresholds.targetAchieved + '% Target', 'Target Achieved', 'Shortfall', 'Achievement %', 'Working Incentive', 'Holiday Pay', 'Total Earnings']];
       emps.forEach(e => {
-        data.push([e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.shortfall, e.achievementPct.toFixed(2), e.workingIncentive, e.holidayPay, e.totalEarnings]);
+        data.push([e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'Yes':'No', e.shortfall, e.achievementPct.toFixed(2), e.workingIncentive, e.holidayPay, e.totalEarnings]);
       });
 
       const s = appData.teamStats;
       data.push([]);
       data.push(['TEAM SUMMARY']);
       data.push(['Total Employees', s.total]);
+      data.push(['Target Achieved (' + thresholds.targetAchieved + '%)', (s.targetAchievedCount||0) + ' / ' + s.total]);
       data.push(['Total Output', s.totalOutput]);
       data.push(['Total Points', s.totalPoints]);
       data.push(['Avg Achievement', s.avgAchievement.toFixed(2) + '%']);
