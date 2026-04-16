@@ -583,8 +583,41 @@
       managers = m ? JSON.parse(m) : [];
       const s = localStorage.getItem('pt_schemes');
       incentiveSchemes = s ? JSON.parse(s) : [{ ...DEFAULT_SCHEME }];
+      
+      // === AUTO-MIGRATION: Ensure all schemes have terminationYTD field ===
+      let migrated = false;
+      incentiveSchemes.forEach(sch => {
+        if (!sch.thresholds) {
+          sch.thresholds = { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
+          migrated = true;
+        } else {
+          if (sch.thresholds.targetAchieved === undefined) { sch.thresholds.targetAchieved = 95; migrated = true; }
+          if (sch.thresholds.atRisk === undefined) { sch.thresholds.atRisk = 80; migrated = true; }
+          if (sch.thresholds.terminationYTD === undefined) { sch.thresholds.terminationYTD = 70; migrated = true; }
+        }
+      });
+      
+      // === AUTO-MIGRATION: Normalize all manager IDs (fix PRO045 → PR045) ===
+      managers.forEach(mgr => {
+        const cleaned = 'PR' + mgr.id.replace(/\D/g, '');
+        if (mgr.id !== cleaned) {
+          console.log('Migrating manager ID:', mgr.id, '→', cleaned);
+          mgr.id = cleaned;
+          migrated = true;
+        }
+      });
+      newJoiners.forEach(j => {
+        const cleaned = 'PR' + j.id.replace(/\D/g, '');
+        if (j.id !== cleaned) { j.id = cleaned; migrated = true; }
+      });
+      resignedEmployees.forEach(r => {
+        const cleaned = 'PR' + r.id.replace(/\D/g, '');
+        if (r.id !== cleaned) { r.id = cleaned; migrated = true; }
+      });
+      
       if (incentiveSchemes.length > 0) currentSchemeId = incentiveSchemes[0].id;
       saveAllData();
+      if (migrated) console.log('⚠️ Auto-migrated data: scheme thresholds + ID normalization');
     }
 
     function saveAllData() {
@@ -1095,8 +1128,9 @@
         const achievementPct = targetRequired > 0 ? (totalDone / targetRequired * 100) : 0;
         
         // Calculate threshold-based target (95% or configured value)
-        const thresholds = scheme.thresholds || { targetAchieved: 95, atRisk: 80 };
-        const targetThresholdValue = Math.floor(targetRequired * thresholds.targetAchieved / 100);
+        const thresholds = scheme.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
+        const safeTargetThreshold = thresholds.targetAchieved || 95;
+        const targetThresholdValue = Math.floor(targetRequired * safeTargetThreshold / 100);
         const isTargetAchieved = totalDone >= targetThresholdValue;
 
         const workingDaysData = dailyData.filter(d => d.isActive && d.isInFilter && d.isInEmpRange && !d.isNonWorking);
@@ -1292,19 +1326,23 @@
 
       const ytdScheme = incentiveSchemes[0] || DEFAULT_SCHEME;
       const thresholds = ytdScheme.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
+      // === DEFENSIVE FALLBACK: Ensure terminationYTD is never undefined ===
+      const termThreshold = thresholds.terminationYTD || 70;
+      const targetThreshold = thresholds.targetAchieved || 95;
+      const atRiskThreshold = thresholds.atRisk || 80;
       
       const employees = Array.from(empMap.values()).map(emp => {
         const mgrInfo = getManagerInfo(emp.id);
         const isManager = !!mgrInfo;
         
         // Achievement calculated from non-manager months only
-        const targetThresholdValue = Math.floor(emp.targetRequired * thresholds.targetAchieved / 100);
+        const targetThresholdValue = Math.floor(emp.targetRequired * targetThreshold / 100);
         const isTargetAchieved = emp.targetRequired > 0 && emp.totalDone >= targetThresholdValue;
         const achievementPct = emp.targetRequired > 0 ? (emp.nonMgrOutput / emp.nonMgrTarget * 100) : 0;
         const isResigned = !!getResignedInfo(emp.id);
         const isNewJoiner = !!getJoinerInfo(emp.id);
         // TERMINATION RISK: Below threshold AND not resigned AND NOT a manager AND has had some target review period
-        const isTerminationRisk = !isManager && achievementPct < thresholds.terminationYTD && !isResigned && emp.targetRequired > 0;
+        const isTerminationRisk = !isManager && achievementPct < termThreshold && !isResigned && emp.targetRequired > 0;
         
         // Calc trend from non-manager active months
         let ytdTrend = 'stable';
@@ -2540,7 +2578,8 @@
       let id = document.getElementById('joiner-id').value.trim().toUpperCase();
       const date = document.getElementById('joiner-date').value;
       if (!name || !id || !date) return alert('Fill all fields');
-      if (!id.startsWith('PR')) id = 'PR' + id.replace(/\D/g, '');
+      id = 'PR' + id.replace(/\D/g, '');
+      if (id === 'PR') return alert('Invalid ID — no digits found. Example: PR045');
       if (newJoiners.some(j => j.id === id)) return alert('Already exists');
       newJoiners.push({ name, id, date });
       saveAllData();
@@ -2581,7 +2620,8 @@
       let id = document.getElementById('resigned-id').value.trim().toUpperCase();
       const date = document.getElementById('resigned-date').value;
       if (!name || !id || !date) return alert('Fill all fields');
-      if (!id.startsWith('PR')) id = 'PR' + id.replace(/\D/g, '');
+      id = 'PR' + id.replace(/\D/g, '');
+      if (id === 'PR') return alert('Invalid ID — no digits found. Example: PR045');
       if (resignedEmployees.some(r => r.id === id)) return alert('Already exists');
       resignedEmployees.push({ name, id, date });
       saveAllData();
@@ -2633,7 +2673,9 @@
       const date = document.getElementById('manager-date').value;
       const note = document.getElementById('manager-note').value.trim();
       if (!name || !id || !date) return alert('Fill Name, ID and Effective Date');
-      if (!id.startsWith('PR')) id = 'PR' + id.replace(/\D/g, '');
+      // === FIX: ALWAYS normalize to PR + digits (strips letter O, spaces, etc) ===
+      id = 'PR' + id.replace(/\D/g, '');
+      if (id === 'PR') return alert('Invalid ID — no digits found. Example: PR045');
       if (managers.some(m => m.id === id)) return alert('Manager with this ID already exists');
       managers.push({ name, id, date, note });
       saveAllData();
@@ -2807,6 +2849,10 @@
       const isYTD = appData.isYTD;
       const title = isYTD ? 'YTD Performance Report' : 'MTD Performance Report';
       const thresholds = appData.scheme?.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
+      // Safe fallbacks
+      const tT = thresholds.targetAchieved || 95;
+      const tA = thresholds.atRisk || 80;
+      const tX = thresholds.terminationYTD || 70;
       
       // === TITLE PAGE ===
       doc.setFontSize(20);
@@ -2814,7 +2860,7 @@
       doc.text(title, 14, 15);
       doc.setFontSize(10);
       doc.setTextColor(100, 116, 139);
-      doc.text('Date: ' + appData.dateRangeText + ' | Working Days: ' + appData.workingDays + ' | Target: ' + thresholds.targetAchieved + '%' + (isYTD?' | Termination Threshold: ' + thresholds.terminationYTD + '%':''), 14, 22);
+      doc.text('Date: ' + appData.dateRangeText + ' | Working Days: ' + appData.workingDays + ' | Target: ' + tT + '%' + (isYTD?' | Termination Threshold: ' + tX + '%':''), 14, 22);
 
       const s = appData.teamStats;
       let cursorY = 28;
