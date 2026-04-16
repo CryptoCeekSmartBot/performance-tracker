@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Performance Tracker Pro v3.0 | Corporate Analytics Dashboard</title>
+  <title>Performance Tracker Pro v5.0 Cloud | Corporate Analytics Dashboard</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { font-family: 'Inter', sans-serif; }
@@ -56,19 +57,105 @@
 <body class="bg-slate-950 text-gray-100 min-h-screen">
   <div id="app">
 
-    <!-- ==================== UPLOAD SCREEN ==================== -->
-    <div id="upload-screen" class="min-h-screen flex items-center justify-center p-4">
-      <div class="max-w-3xl w-full animate-fade-in">
+    <!-- ==================== LOGIN SCREEN ==================== -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-4 hidden">
+      <div class="max-w-md w-full animate-fade-in">
         <div class="text-center mb-8">
-          <h1 class="text-4xl md:text-5xl font-bold gradient-text mb-3">Performance Tracker Pro</h1>
-          <p class="text-gray-400 text-lg">Corporate Employee Performance & Incentive Analytics v3.0</p>
+          <h1 class="text-4xl font-bold gradient-text mb-2">Performance Tracker Pro</h1>
+          <p class="text-gray-400 text-sm">☁️ Cloud Edition · v5.0</p>
         </div>
-        
-        <!-- Report Type Selection -->
-        <div class="flex justify-center gap-4 mb-6">
-          <button id="mtd-mode-btn" class="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-sm font-medium transition-all">📊 MTD Report</button>
-          <button id="ytd-mode-btn" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium transition-all">📈 YTD Report</button>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
+          <h2 class="text-xl font-semibold mb-6 text-center">🔐 Sign In</h2>
+          <form id="login-form" class="space-y-4">
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Email</label>
+              <input type="email" id="login-email" required autocomplete="username" placeholder="admin@tracker.com" class="w-full bg-slate-800 border border-slate-600 px-4 py-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Password</label>
+              <input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••" class="w-full bg-slate-800 border border-slate-600 px-4 py-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            </div>
+            <div id="login-error" class="hidden text-xs text-red-400 bg-red-950/30 border border-red-800/50 px-3 py-2 rounded-lg"></div>
+            <button type="submit" id="login-submit-btn" class="w-full px-4 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-lg text-sm font-medium transition-all">Sign In</button>
+          </form>
+          <div class="mt-6 pt-4 border-t border-slate-800 text-center text-xs text-gray-500">
+            🌐 Cloud-synced · Accessible from any device<br>
+            Session: 30 days
+          </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ==================== BOOT / CLOUD LOADING SCREEN ==================== -->
+    <div id="boot-screen" class="min-h-screen flex items-center justify-center p-4">
+      <div class="text-center animate-fade-in">
+        <div class="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center mb-4 animate-pulse">
+          <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+        </div>
+        <h1 class="text-2xl font-bold gradient-text mb-2">Performance Tracker Pro</h1>
+        <p class="text-gray-400 text-sm" id="boot-status">Connecting to cloud…</p>
+      </div>
+    </div>
+
+    <!-- ==================== UPLOAD SCREEN ==================== -->
+    <div id="upload-screen" class="min-h-screen flex items-center justify-center p-4 hidden">
+      <div class="max-w-4xl w-full animate-fade-in">
+        <div class="flex items-center justify-between mb-6">
+          <div class="text-left">
+            <h1 class="text-3xl md:text-4xl font-bold gradient-text">Performance Tracker Pro</h1>
+            <p class="text-gray-400 text-sm">☁️ Cloud Edition · v5.0 · <span id="home-user-email" class="text-cyan-400">—</span></p>
+          </div>
+          <button id="home-logout-btn" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-red-900/50 border border-slate-700 hover:border-red-700 text-sm transition-all" title="Sign out">🚪 Logout</button>
+        </div>
+
+        <!-- ========== HISTORICAL VIEW ========== -->
+        <div class="bg-gradient-to-br from-purple-900/20 to-blue-900/20 border border-purple-700/30 rounded-2xl p-5 mb-6">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-2xl">📅</span>
+            <div>
+              <h2 class="text-lg font-semibold text-purple-200">View Historical Reports</h2>
+              <p class="text-xs text-gray-400">Pick any uploaded month/range. No re-upload needed.</p>
+            </div>
+          </div>
+          <div id="historical-empty" class="hidden text-center py-6 text-gray-400 text-sm bg-slate-900/50 rounded-lg border border-slate-800">
+            No data uploaded yet. Upload your first Excel below to get started.
+          </div>
+          <div id="historical-picker" class="hidden grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Year</label>
+              <select id="hv-year" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">From Month</label>
+              <select id="hv-from-month" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">To Month</label>
+              <select id="hv-to-month" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></select>
+            </div>
+            <div class="md:col-span-2 flex gap-2">
+              <button id="hv-view-btn" class="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-lg text-sm font-medium">📊 View Report</button>
+              <span id="hv-mode-hint" class="px-3 py-2 rounded-lg bg-slate-800 text-xs text-gray-400 whitespace-nowrap flex items-center">MTD</span>
+            </div>
+          </div>
+          <div id="hv-available-months" class="mt-3 text-xs text-gray-500"></div>
+        </div>
+
+        <!-- ========== UPLOAD NEW DATA ========== -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-2xl">📤</span>
+            <div>
+              <h2 class="text-lg font-semibold">Upload New Data</h2>
+              <p class="text-xs text-gray-400">Only upload when you have NEW Excel data. For viewing past months, use Historical View above.</p>
+            </div>
+          </div>
+
+          <!-- Report Type Selection -->
+          <div class="flex justify-center gap-4 mb-4">
+            <button id="mtd-mode-btn" class="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-sm font-medium transition-all">📊 Single Month Upload</button>
+            <button id="ytd-mode-btn" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium transition-all">📈 Multiple Months Upload</button>
+          </div>
         
         <!-- MTD Upload -->
         <div id="mtd-upload-zone" class="bg-slate-900 border-2 border-dashed border-slate-700 rounded-2xl p-12 text-center cursor-pointer hover:border-cyan-500 hover:bg-cyan-500/5 transition-all">
@@ -89,11 +176,12 @@
           <p class="text-gray-400">Select all months (up to 12 files)</p>
           <input type="file" id="ytd-file-input" accept=".xls,.xlsx" multiple class="hidden">
           <div id="ytd-files-list" class="hidden mt-4 text-left bg-slate-800 rounded-lg p-4 max-h-40 overflow-y-auto"></div>
-          <button id="process-ytd-btn" class="hidden mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-medium">📊 Process YTD</button>
+          <button id="process-ytd-btn" class="hidden mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-medium">📊 Process & Upload</button>
         </div>
-        
+        </div>
+
         <!-- Settings Buttons -->
-        <div class="mt-6 grid grid-cols-2 md:grid-cols-6 gap-3">
+        <div class="mt-2 grid grid-cols-2 md:grid-cols-6 gap-3">
           <button id="manage-holidays-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">📅 Holidays</button>
           <button id="manage-joiners-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">🆕 Joiners</button>
           <button id="manage-resigned-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">🚪 Resigned</button>
@@ -102,11 +190,11 @@
           <button id="settings-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">⚙️ Settings</button>
         </div>
         
-        <div class="mt-8 grid grid-cols-4 gap-4 text-center">
-          <div class="bg-slate-900 border border-slate-800 rounded-xl p-4"><div class="text-2xl mb-2">📊</div><div class="text-xs text-gray-400">Point System</div></div>
+        <div class="mt-6 grid grid-cols-4 gap-4 text-center">
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-4"><div class="text-2xl mb-2">☁️</div><div class="text-xs text-gray-400">Cloud Synced</div></div>
           <div class="bg-slate-900 border border-slate-800 rounded-xl p-4"><div class="text-2xl mb-2">💰</div><div class="text-xs text-gray-400">Auto Incentive</div></div>
           <div class="bg-slate-900 border border-slate-800 rounded-xl p-4"><div class="text-2xl mb-2">🎁</div><div class="text-xs text-gray-400">Holiday Pay</div></div>
-          <div class="bg-slate-900 border border-slate-800 rounded-xl p-4"><div class="text-2xl mb-2">📈</div><div class="text-xs text-gray-400">YTD Reports</div></div>
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-4"><div class="text-2xl mb-2">📈</div><div class="text-xs text-gray-400">True Carry-Forward</div></div>
         </div>
       </div>
     </div>
@@ -136,7 +224,8 @@
               <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-800 border border-slate-700">☀️</button>
               <button id="fullscreen-toggle" class="p-2 rounded-lg hover:bg-slate-800 border border-slate-700">⛶</button>
               <button id="print-btn" class="p-2 rounded-lg hover:bg-slate-800 border border-slate-700">🖨️</button>
-              <button id="new-upload-btn" class="p-2 rounded-lg hover:bg-slate-800 border border-slate-700">📤</button>
+              <button id="new-upload-btn" class="p-2 rounded-lg hover:bg-slate-800 border border-slate-700" title="Home / Upload new">🏠</button>
+              <button id="dashboard-logout-btn" class="p-2 rounded-lg hover:bg-red-900/50 border border-slate-700 hover:border-red-700" title="Sign out">🚪</button>
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-3">
@@ -506,34 +595,88 @@
       <div class="relative z-10 flex items-center justify-center min-h-screen p-4">
         <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden animate-scale-in">
           <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-            <div><h2 class="text-xl font-bold">⚙️ Settings</h2><p class="text-sm text-gray-400">Import/Export configuration</p></div>
+            <div><h2 class="text-xl font-bold">⚙️ Settings</h2><p class="text-sm text-gray-400">Cloud data & migration</p></div>
             <button onclick="closeModal('settings-modal')" class="p-2 hover:bg-slate-800 rounded-lg">✕</button>
           </div>
-          <div class="p-6 space-y-4">
-            <div class="bg-slate-800 rounded-xl p-4">
-              <h3 class="font-semibold text-emerald-400 mb-2">📤 Export</h3>
-              <p class="text-xs text-gray-400 mb-3">Download all settings to share with team</p>
-              <button id="export-settings-btn" class="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium">Download Settings</button>
+          <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div class="bg-gradient-to-br from-cyan-900/20 to-blue-900/20 border border-cyan-700/30 rounded-xl p-4">
+              <h3 class="font-semibold text-cyan-300 mb-2">☁️ Cloud Status</h3>
+              <div class="space-y-1 text-sm text-gray-300">
+                <div class="flex justify-between"><span>Signed in as:</span><span id="settings-user-email" class="text-cyan-400">—</span></div>
+                <div class="flex justify-between"><span>Database:</span><span class="text-emerald-400">● Connected</span></div>
+              </div>
             </div>
-            <div class="bg-slate-800 rounded-xl p-4">
-              <h3 class="font-semibold text-cyan-400 mb-2">📥 Import</h3>
-              <p class="text-xs text-gray-400 mb-3">Load settings from JSON file</p>
-              <input type="file" id="import-settings-input" accept=".json" class="hidden">
-              <button id="import-settings-btn" class="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm font-medium">Select File</button>
+            <div class="bg-gradient-to-br from-purple-900/20 to-pink-900/20 border border-purple-700/30 rounded-xl p-4">
+              <h3 class="font-semibold text-purple-300 mb-2">🔄 One-Time Migration</h3>
+              <p class="text-xs text-gray-400 mb-3">Import your existing settings JSON (from old v4.x app)</p>
+              <input type="file" id="migration-file-input" accept=".json" class="hidden">
+              <button id="migration-btn" class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-medium">Select Settings JSON File</button>
+              <div id="migration-status" class="hidden mt-3 text-xs space-y-1 bg-slate-800/50 rounded-lg p-2"></div>
             </div>
             <div class="bg-slate-800/50 rounded-xl p-4 text-sm">
-              <h3 class="font-semibold text-gray-300 mb-2">📊 Current Data</h3>
+              <h3 class="font-semibold text-gray-300 mb-2">📊 Current Cloud Data</h3>
               <div class="space-y-1 text-gray-400">
                 <div class="flex justify-between"><span>Holidays:</span><span id="settings-holiday-count" class="text-white">0</span></div>
                 <div class="flex justify-between"><span>Joiners:</span><span id="settings-joiner-count" class="text-white">0</span></div>
                 <div class="flex justify-between"><span>Resigned:</span><span id="settings-resigned-count" class="text-white">0</span></div>
                 <div class="flex justify-between"><span>👔 Managers:</span><span id="settings-manager-count" class="text-purple-300">0</span></div>
                 <div class="flex justify-between"><span>Schemes:</span><span id="settings-scheme-count" class="text-white">0</span></div>
+                <div class="flex justify-between"><span>Employees in DB:</span><span id="settings-employees-count" class="text-cyan-300">0</span></div>
+                <div class="flex justify-between"><span>Uploaded months:</span><span id="settings-months-count" class="text-cyan-300">0</span></div>
                 <div class="flex justify-between pt-1 border-t border-slate-700 mt-1"><span>⚠️ Penalty System:</span><span id="settings-penalty-status" class="text-gray-300">OFF</span></div>
               </div>
             </div>
           </div>
           <div class="px-6 py-4 border-t border-slate-700"><button onclick="closeModal('settings-modal')" class="w-full px-6 py-2 bg-slate-700 rounded-lg text-sm">Close</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== RE-UPLOAD CONFIRM MODAL ==================== -->
+    <div id="reupload-modal" class="fixed inset-0 z-50 hidden">
+      <div class="modal-overlay absolute inset-0"></div>
+      <div class="relative z-10 flex items-center justify-center min-h-screen p-4">
+        <div class="bg-slate-900 border-2 border-amber-600/60 rounded-2xl w-full max-w-lg overflow-hidden animate-scale-in">
+          <div class="px-6 py-4 border-b border-amber-700/40 bg-amber-900/20 flex items-center gap-3">
+            <div class="text-3xl">⚠️</div>
+            <div><h2 class="text-lg font-bold text-amber-200">Data Already Exists</h2><p class="text-xs text-amber-300/70">Confirm overwrite</p></div>
+          </div>
+          <div class="p-6 space-y-3 text-sm text-gray-300">
+            <p id="reupload-message">Some of the months you're uploading already exist in the cloud.</p>
+            <div id="reupload-details" class="bg-slate-800/60 border border-slate-700 rounded-lg p-3 text-xs font-mono text-gray-400 max-h-40 overflow-y-auto"></div>
+            <p class="text-xs text-amber-300">🛡️ Old data will be automatically backed up to <code class="text-amber-200">audit_log</code> before replacement.</p>
+          </div>
+          <div class="px-6 py-4 border-t border-slate-700 bg-slate-800/50 flex justify-end gap-2">
+            <button id="reupload-cancel-btn" class="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm">Cancel</button>
+            <button id="reupload-confirm-btn" class="px-6 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-sm font-medium">Overwrite</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== NEW EMPLOYEES TOAST ==================== -->
+    <div id="new-emp-toast" class="fixed bottom-6 right-6 z-[60] hidden max-w-sm">
+      <div class="bg-gradient-to-br from-blue-900/95 to-cyan-900/95 border border-cyan-500/60 rounded-xl p-4 shadow-2xl animate-fade-in">
+        <div class="flex items-start gap-3">
+          <div class="text-2xl">🆕</div>
+          <div class="flex-1">
+            <div class="font-bold text-cyan-200">New Employees Detected</div>
+            <div id="new-emp-toast-body" class="text-xs text-cyan-100/80 mt-1"></div>
+          </div>
+          <button id="new-emp-toast-close" class="text-gray-400 hover:text-white text-xl leading-none">×</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== UPLOAD PROGRESS TOAST ==================== -->
+    <div id="upload-progress-toast" class="fixed top-6 right-6 z-[60] hidden max-w-sm">
+      <div class="bg-slate-900 border border-cyan-500/60 rounded-xl p-4 shadow-2xl">
+        <div class="flex items-center gap-3">
+          <div class="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+          <div class="flex-1">
+            <div class="font-bold text-cyan-200 text-sm">Saving to cloud…</div>
+            <div id="upload-progress-body" class="text-xs text-gray-400 mt-1">Processing</div>
+          </div>
         </div>
       </div>
     </div>
@@ -572,10 +715,21 @@
   <!-- ==================== JAVASCRIPT PLACEHOLDER ==================== -->
   <script>
     // ================================================================
-    // SECTION 1: GLOBAL STATE & CONFIGURATION
+    // SECTION 1: SUPABASE CONFIG & GLOBAL STATE
     // ================================================================
-    let rawExcelData = null;
-    let appData = null;
+    const SUPABASE_URL = 'https://lmbytcujsdiqpwxxaxjo.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_AfjuU62ED26T0pM2NVSErA_JHSM-vjg';
+
+    // Supabase client (v2). Session token persists in localStorage under key
+    // "sb-lmbytcuj...-auth-token" — this is ONLY the auth token, NOT app data.
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true }
+    });
+
+    let currentUser = null;            // { id, email }
+    let rawExcelData = null;           // Most recent Excel JSON (for re-processing)
+    let rawYtdMonthsData = null;       // Array of Excel JSONs (YTD mode)
+    let appData = null;                // Processed report data for rendering
     let reportMode = 'mtd';
     let darkMode = true;
     let searchTerm = '';
@@ -584,136 +738,324 @@
     let dateFilter = { from: null, to: null };
     let ytdFiles = [];
     let currentSchemeId = null;
+    let pendingReuploadAction = null;  // Callback after user confirms overwrite
 
     // ================================================================
-    // SECTION 2: DEFAULT DATA
+    // SECTION 2: IN-MEMORY CACHES (mirror of cloud tables, refreshed on load)
+    // These replace the old localStorage-backed arrays. Source of truth = DB.
     // ================================================================
-    const DEFAULT_HOLIDAYS_2026 = [
-      { date: '2026-01-26', name: 'Republic Day' },
-      { date: '2026-03-03', name: 'Holi' },
-      { date: '2026-05-01', name: 'May Day' },
-      { date: '2026-08-15', name: 'Independence Day' },
-      { date: '2026-10-02', name: 'Gandhi Jayanti' },
-      { date: '2026-10-19', name: 'Durga Puja' },
-      { date: '2026-10-20', name: 'Durga Puja' },
-      { date: '2026-10-21', name: 'Durga Puja' },
-      { date: '2026-11-09', name: 'Diwali' },
-      { date: '2026-12-25', name: 'Christmas' }
-    ];
-
-    const DEFAULT_SCHEME = {
+    const DEFAULT_SCHEME_TEMPLATE = {
       id: 'scheme_default',
-      name: 'Nov-Dec 2025',
-      validFrom: '2025-11-01',
-      validTo: '2025-12-31',
+      name: 'Default Scheme',
+      validFrom: '2025-01-01',
+      validTo: '2030-12-31',
       points: { leadgen: 1, prolink: 2, svg: 1 },
       target8: { minPoints: 7, targetPoints: 8, exceedPoints: 9, minRate: 7, targetRate: 8, exceedRate: 9 },
       target10: { minPoints: 9, targetPoints: 10, exceedPoints: 11, minRate: 7, targetRate: 8, exceedRate: 9 },
       holidayRates: { leadgen: 75, prolink: 100, svg: 75 },
       thresholds: { targetAchieved: 95, atRisk: 80, nearTarget: 86, terminationYTD: 70 },
       penalty: {
-        enabled: false,      // Master toggle - OFF by default for safer rollout
-        rates: {
-          nearTarget: 0,     // 86-94% no penalty
-          atRisk: 5,         // 80-85% light penalty
-          critical: 15,      // 70-79% moderate
-          termination: 25    // <70% maximum
-        },
-        debtCeilingMultiplier: 2,   // max debt = 2x monthly incentive potential
-        newJoinerGraceMonths: 2,    // first 2 months exempt
-        clearDebtOn95Percent: true, // forgiveness on recovery month
-        wipeDebtOnTermination: true // don't double-punish if terminated
+        enabled: false,
+        rates: { nearTarget: 0, atRisk: 5, critical: 15, termination: 25 },
+        debtCeilingMultiplier: 2,
+        newJoinerGraceMonths: 2,
+        clearDebtOn95Percent: true,
+        wipeDebtOnTermination: true
       }
     };
 
-    let holidays = [];
-    let newJoiners = [];
-    let resignedEmployees = [];
-    let managers = [];
-    let incentiveSchemes = [];
+    let holidays = [];              // [{date, name}]
+    let newJoiners = [];            // [{id, name, date}]
+    let resignedEmployees = [];     // [{id, name, date}]
+    let managers = [];              // [{id, name, date, note}]
+    let incentiveSchemes = [];      // full scheme objects (same shape as v4.3.1)
+    let employeesMap = new Map();   // pr_id → { name, daily_target, status }
+    let availableMonths = [];       // [{year, month}] sorted ascending
 
     // ================================================================
-    // SECTION 3: INITIALIZATION
+    // SECTION 3: SUPABASE ↔ APP OBJECT CONVERSION HELPERS
     // ================================================================
-    document.addEventListener('DOMContentLoaded', () => {
-      loadAllData();
-      setupEventListeners();
-    });
 
-    function loadAllData() {
-      const h = localStorage.getItem('pt_holidays');
-      holidays = h ? JSON.parse(h) : [...DEFAULT_HOLIDAYS_2026];
-      const j = localStorage.getItem('pt_joiners');
-      newJoiners = j ? JSON.parse(j) : [];
-      const r = localStorage.getItem('pt_resigned');
-      resignedEmployees = r ? JSON.parse(r) : [];
-      const m = localStorage.getItem('pt_managers');
-      managers = m ? JSON.parse(m) : [];
-      const s = localStorage.getItem('pt_schemes');
-      incentiveSchemes = s ? JSON.parse(s) : [{ ...DEFAULT_SCHEME }];
-      
-      // === AUTO-MIGRATION: Ensure all schemes have terminationYTD + nearTarget + penalty ===
-      let migrated = false;
-      incentiveSchemes.forEach(sch => {
-        if (!sch.thresholds) {
-          sch.thresholds = { targetAchieved: 95, atRisk: 80, nearTarget: 86, terminationYTD: 70 };
-          migrated = true;
-        } else {
-          if (sch.thresholds.targetAchieved === undefined) { sch.thresholds.targetAchieved = 95; migrated = true; }
-          if (sch.thresholds.atRisk === undefined) { sch.thresholds.atRisk = 80; migrated = true; }
-          if (sch.thresholds.nearTarget === undefined) { sch.thresholds.nearTarget = 86; migrated = true; }
-          if (sch.thresholds.terminationYTD === undefined) { sch.thresholds.terminationYTD = 70; migrated = true; }
+    // Convert DB scheme row (flat) → app scheme object (nested, as v4.3.1 expects)
+    function dbRowToScheme(r) {
+      return {
+        id: r.id, name: r.name,
+        validFrom: r.valid_from, validTo: r.valid_to,
+        points: { leadgen: r.point_leadgen, prolink: r.point_prolink, svg: r.point_svg },
+        target8: {
+          minPoints: r.t8_min_points, targetPoints: r.t8_target_points, exceedPoints: r.t8_exceed_points,
+          minRate: r.t8_min_rate, targetRate: r.t8_target_rate, exceedRate: r.t8_exceed_rate
+        },
+        target10: {
+          minPoints: r.t10_min_points, targetPoints: r.t10_target_points, exceedPoints: r.t10_exceed_points,
+          minRate: r.t10_min_rate, targetRate: r.t10_target_rate, exceedRate: r.t10_exceed_rate
+        },
+        holidayRates: {
+          leadgen: r.holiday_leadgen_rate, prolink: r.holiday_prolink_rate, svg: r.holiday_svg_rate
+        },
+        thresholds: {
+          targetAchieved: r.threshold_target_achieved,
+          atRisk: r.threshold_at_risk,
+          nearTarget: r.threshold_near_target,
+          terminationYTD: r.threshold_termination_ytd
+        },
+        penalty: {
+          enabled: r.penalty_enabled,
+          rates: {
+            nearTarget: r.penalty_rate_near_target,
+            atRisk: r.penalty_rate_at_risk,
+            critical: r.penalty_rate_critical,
+            termination: r.penalty_rate_termination
+          },
+          debtCeilingMultiplier: Number(r.penalty_debt_ceiling_multiplier),
+          newJoinerGraceMonths: r.penalty_new_joiner_grace_months,
+          clearDebtOn95Percent: r.penalty_clear_debt_on_95,
+          wipeDebtOnTermination: r.penalty_wipe_debt_on_termination
         }
-        // Penalty config migration
-        if (!sch.penalty) {
-          sch.penalty = {
-            enabled: false,
-            rates: { nearTarget: 0, atRisk: 5, critical: 15, termination: 25 },
-            debtCeilingMultiplier: 2,
-            newJoinerGraceMonths: 2,
-            clearDebtOn95Percent: true,
-            wipeDebtOnTermination: true
-          };
-          migrated = true;
-        } else {
-          if (!sch.penalty.rates) { sch.penalty.rates = { nearTarget: 0, atRisk: 5, critical: 15, termination: 25 }; migrated = true; }
-          if (sch.penalty.enabled === undefined) { sch.penalty.enabled = false; migrated = true; }
-          if (sch.penalty.debtCeilingMultiplier === undefined) { sch.penalty.debtCeilingMultiplier = 2; migrated = true; }
-          if (sch.penalty.newJoinerGraceMonths === undefined) { sch.penalty.newJoinerGraceMonths = 2; migrated = true; }
-          if (sch.penalty.clearDebtOn95Percent === undefined) { sch.penalty.clearDebtOn95Percent = true; migrated = true; }
-          if (sch.penalty.wipeDebtOnTermination === undefined) { sch.penalty.wipeDebtOnTermination = true; migrated = true; }
-        }
-      });
-      
-      // === AUTO-MIGRATION: Normalize all manager IDs (fix PRO045 → PR045) ===
-      managers.forEach(mgr => {
-        const cleaned = 'PR' + mgr.id.replace(/\D/g, '');
-        if (mgr.id !== cleaned) {
-          console.log('Migrating manager ID:', mgr.id, '→', cleaned);
-          mgr.id = cleaned;
-          migrated = true;
-        }
-      });
-      newJoiners.forEach(j => {
-        const cleaned = 'PR' + j.id.replace(/\D/g, '');
-        if (j.id !== cleaned) { j.id = cleaned; migrated = true; }
-      });
-      resignedEmployees.forEach(r => {
-        const cleaned = 'PR' + r.id.replace(/\D/g, '');
-        if (r.id !== cleaned) { r.id = cleaned; migrated = true; }
-      });
-      
-      if (incentiveSchemes.length > 0) currentSchemeId = incentiveSchemes[0].id;
-      saveAllData();
-      if (migrated) console.log('⚠️ Auto-migrated data: scheme thresholds + ID normalization');
+      };
     }
 
-    function saveAllData() {
-      localStorage.setItem('pt_holidays', JSON.stringify(holidays));
-      localStorage.setItem('pt_joiners', JSON.stringify(newJoiners));
-      localStorage.setItem('pt_resigned', JSON.stringify(resignedEmployees));
-      localStorage.setItem('pt_managers', JSON.stringify(managers));
-      localStorage.setItem('pt_schemes', JSON.stringify(incentiveSchemes));
+    // Convert app scheme object → flat DB row
+    function schemeToDbRow(s) {
+      return {
+        id: s.id, name: s.name,
+        valid_from: s.validFrom || null, valid_to: s.validTo || null,
+        point_leadgen: s.points.leadgen, point_prolink: s.points.prolink, point_svg: s.points.svg,
+        t8_min_points: s.target8.minPoints, t8_target_points: s.target8.targetPoints, t8_exceed_points: s.target8.exceedPoints,
+        t8_min_rate: s.target8.minRate, t8_target_rate: s.target8.targetRate, t8_exceed_rate: s.target8.exceedRate,
+        t10_min_points: s.target10.minPoints, t10_target_points: s.target10.targetPoints, t10_exceed_points: s.target10.exceedPoints,
+        t10_min_rate: s.target10.minRate, t10_target_rate: s.target10.targetRate, t10_exceed_rate: s.target10.exceedRate,
+        holiday_leadgen_rate: s.holidayRates.leadgen, holiday_prolink_rate: s.holidayRates.prolink, holiday_svg_rate: s.holidayRates.svg,
+        threshold_target_achieved: s.thresholds.targetAchieved,
+        threshold_near_target: s.thresholds.nearTarget,
+        threshold_at_risk: s.thresholds.atRisk,
+        threshold_termination_ytd: s.thresholds.terminationYTD,
+        penalty_enabled: s.penalty.enabled,
+        penalty_rate_near_target: s.penalty.rates.nearTarget,
+        penalty_rate_at_risk: s.penalty.rates.atRisk,
+        penalty_rate_critical: s.penalty.rates.critical,
+        penalty_rate_termination: s.penalty.rates.termination,
+        penalty_debt_ceiling_multiplier: s.penalty.debtCeilingMultiplier,
+        penalty_new_joiner_grace_months: s.penalty.newJoinerGraceMonths,
+        penalty_clear_debt_on_95: s.penalty.clearDebtOn95Percent,
+        penalty_wipe_debt_on_termination: s.penalty.wipeDebtOnTermination
+      };
+    }
+
+    // Convert a monthly_data row (flat 111 cols) back to the Excel-row-style
+    // array that processData() and processYTDData() expect.
+    // Returns an array structurally identical to an Excel row so we can reuse
+    // ALL the original calculation/rendering code unchanged.
+    function monthlyDataRowToExcelRow(row, employee) {
+      const excelRow = [];
+      excelRow[0] = '';
+      excelRow[1] = `${employee.name} (${row.employee_pr_id})`; // col B: "Name (PRxxx)"
+      excelRow[2] = row.retail_pending;                          // col C
+      excelRow[3] = 0;
+      excelRow[4] = row.prolinks_pending;                        // col E
+      excelRow[5] = row.svg_pending;                             // col F
+      excelRow[6] = row.daily_target;                            // col G
+      // Cols H+ : 31 days × 3 products
+      for (let d = 1; d <= 31; d++) {
+        const baseCol = 7 + (d - 1) * 3;
+        excelRow[baseCol]     = row[`day_${d}_retail`] || 0;
+        excelRow[baseCol + 1] = row[`day_${d}_prolinks`] || 0;
+        excelRow[baseCol + 2] = row[`day_${d}_svg`] || 0;
+      }
+      return excelRow;
+    }
+
+    // Reconstruct a synthetic "Excel JSON" (header rows + employee rows) for a
+    // given year/month from monthly_data + employees tables
+    function reconstructExcelJsonFromMonthlyRows(year, month, monthlyRows) {
+      const monthName = ['','JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'][month];
+      const headerRow = []; headerRow[5] = `${monthName} ${year}`;  // Cell F1
+      const syntheticJson = [
+        headerRow,  // Row 0: F1 has "MONTH YEAR"
+        [],         // Row 1
+        [],         // Row 2
+        [],         // Row 3 (blank header area)
+      ];
+      monthlyRows.forEach(r => {
+        const emp = employeesMap.get(r.employee_pr_id) || { name: 'Unknown', daily_target: r.daily_target };
+        syntheticJson.push(monthlyDataRowToExcelRow(r, emp));
+      });
+      // Add 2 trailing blank rows because processData iterates to jsonData.length - 2
+      syntheticJson.push([]);
+      syntheticJson.push([]);
+      return syntheticJson;
+    }
+
+    // ================================================================
+    // SECTION 4: AUTH FLOW
+    // ================================================================
+    async function checkAuthAndBoot() {
+      setBootStatus('Checking session…');
+      const { data: { session } } = await sb.auth.getSession();
+      if (session?.user) {
+        currentUser = { id: session.user.id, email: session.user.email };
+        setBootStatus('Loading cloud data…');
+        await loadAllDataFromCloud();
+        showHomeScreen();
+      } else {
+        showLoginScreen();
+      }
+    }
+
+    function setBootStatus(msg) {
+      const el = document.getElementById('boot-status');
+      if (el) el.textContent = msg;
+    }
+
+    function showLoginScreen() {
+      document.getElementById('boot-screen').classList.add('hidden');
+      document.getElementById('upload-screen').classList.add('hidden');
+      document.getElementById('dashboard').classList.add('hidden');
+      document.getElementById('login-screen').classList.remove('hidden');
+    }
+
+    function showHomeScreen() {
+      document.getElementById('boot-screen').classList.add('hidden');
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('dashboard').classList.add('hidden');
+      document.getElementById('upload-screen').classList.remove('hidden');
+      const emailEl = document.getElementById('home-user-email');
+      if (emailEl && currentUser) emailEl.textContent = currentUser.email;
+      renderHistoricalPicker();
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      const errorEl = document.getElementById('login-error');
+      const btn = document.getElementById('login-submit-btn');
+      errorEl.classList.add('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+      try {
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        currentUser = { id: data.user.id, email: data.user.email };
+        setBootStatus('Loading cloud data…');
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('boot-screen').classList.remove('hidden');
+        await loadAllDataFromCloud();
+        showHomeScreen();
+      } catch (err) {
+        errorEl.textContent = '❌ ' + (err.message || 'Sign-in failed');
+        errorEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+      }
+    }
+
+    async function handleLogout() {
+      if (!confirm('Sign out?')) return;
+      await sb.auth.signOut();
+      currentUser = null;
+      appData = null;
+      rawExcelData = null;
+      holidays = []; newJoiners = []; resignedEmployees = []; managers = []; incentiveSchemes = [];
+      employeesMap.clear();
+      availableMonths = [];
+      showLoginScreen();
+    }
+
+    // ================================================================
+    // SECTION 5: INITIALIZATION
+    // ================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      setupEventListeners();
+      checkAuthAndBoot();
+    });
+
+    // ================================================================
+    // SECTION 6: CLOUD DATA LOAD (replaces old loadAllData/saveAllData)
+    // ================================================================
+    async function loadAllDataFromCloud() {
+      try {
+        const [hRes, jRes, rRes, mRes, sRes, eRes, mmRes] = await Promise.all([
+          sb.from('holidays').select('*').order('date'),
+          sb.from('new_joiners').select('*'),
+          sb.from('resigned').select('*'),
+          sb.from('managers').select('*'),
+          sb.from('schemes').select('*'),
+          sb.from('employees').select('*'),
+          sb.from('monthly_data').select('employee_pr_id, year, month').order('year').order('month')
+        ]);
+
+        if (hRes.error)  throw hRes.error;
+        if (jRes.error)  throw jRes.error;
+        if (rRes.error)  throw rRes.error;
+        if (mRes.error)  throw mRes.error;
+        if (sRes.error)  throw sRes.error;
+        if (eRes.error)  throw eRes.error;
+        if (mmRes.error) throw mmRes.error;
+
+        holidays = (hRes.data || []).map(h => ({ date: h.date, name: h.name }));
+
+        // Need employee names for joiners/resigned/managers display
+        employeesMap.clear();
+        (eRes.data || []).forEach(e => {
+          employeesMap.set(e.pr_id, { name: e.name, daily_target: e.daily_target, status: e.status });
+        });
+
+        newJoiners = (jRes.data || []).map(x => ({
+          id: x.employee_pr_id,
+          name: employeesMap.get(x.employee_pr_id)?.name || x.employee_pr_id,
+          date: x.joining_date
+        }));
+        resignedEmployees = (rRes.data || []).map(x => ({
+          id: x.employee_pr_id,
+          name: employeesMap.get(x.employee_pr_id)?.name || x.employee_pr_id,
+          date: x.resigned_date
+        }));
+        managers = (mRes.data || []).map(x => ({
+          id: x.employee_pr_id,
+          name: employeesMap.get(x.employee_pr_id)?.name || x.employee_pr_id,
+          date: x.effective_from,
+          note: x.note || ''
+        }));
+
+        incentiveSchemes = (sRes.data || []).map(dbRowToScheme);
+        if (incentiveSchemes.length === 0) {
+          // Fallback — should have been seeded by schema.sql, but just in case
+          incentiveSchemes = [{ ...DEFAULT_SCHEME_TEMPLATE }];
+        }
+        currentSchemeId = incentiveSchemes[0].id;
+
+        // Compute uploaded months list (distinct (year, month) pairs)
+        const seen = new Set();
+        availableMonths = [];
+        (mmRes.data || []).forEach(r => {
+          const key = r.year + '-' + r.month;
+          if (!seen.has(key)) { seen.add(key); availableMonths.push({ year: r.year, month: r.month }); }
+        });
+        availableMonths.sort((a, b) => (a.year * 100 + a.month) - (b.year * 100 + b.month));
+
+        console.log('☁️ Cloud data loaded:', {
+          holidays: holidays.length, joiners: newJoiners.length,
+          resigned: resignedEmployees.length, managers: managers.length,
+          schemes: incentiveSchemes.length, employees: employeesMap.size,
+          uploadedMonths: availableMonths.length
+        });
+      } catch (err) {
+        console.error('❌ Cloud load failed:', err);
+        alert('Failed to load cloud data: ' + err.message);
+      }
+    }
+
+    // Lightweight helper for audit logging
+    async function writeAudit(action, entity_type, entity_ref, details) {
+      try {
+        await sb.from('audit_log').insert({
+          action, entity_type, entity_ref,
+          details: details || null
+        });
+      } catch (err) {
+        console.warn('Audit log failed (non-fatal):', err);
+      }
     }
 
     // ================================================================
@@ -792,10 +1134,37 @@
       document.getElementById('delete-scheme-btn').addEventListener('click', deleteCurrentScheme);
       document.getElementById('save-scheme-btn').addEventListener('click', saveSchemeFromForm);
       
-      // Settings
-      document.getElementById('export-settings-btn').addEventListener('click', exportSettings);
-      document.getElementById('import-settings-btn').addEventListener('click', () => document.getElementById('import-settings-input').click());
-      document.getElementById('import-settings-input').addEventListener('change', importSettings);
+      // Settings — Migration tool
+      document.getElementById('migration-btn').addEventListener('click', () => document.getElementById('migration-file-input').click());
+      document.getElementById('migration-file-input').addEventListener('change', runMigration);
+
+      // Auth
+      document.getElementById('login-form').addEventListener('submit', handleLogin);
+      document.getElementById('home-logout-btn').addEventListener('click', handleLogout);
+      document.getElementById('dashboard-logout-btn').addEventListener('click', handleLogout);
+
+      // Historical View
+      document.getElementById('hv-year').addEventListener('change', onHvChange);
+      document.getElementById('hv-from-month').addEventListener('change', onHvChange);
+      document.getElementById('hv-to-month').addEventListener('change', onHvChange);
+      document.getElementById('hv-view-btn').addEventListener('click', viewHistoricalReport);
+
+      // Re-upload confirm modal
+      document.getElementById('reupload-cancel-btn').addEventListener('click', () => {
+        pendingReuploadAction = null;
+        document.getElementById('reupload-modal').classList.add('hidden');
+      });
+      document.getElementById('reupload-confirm-btn').addEventListener('click', () => {
+        const cb = pendingReuploadAction;
+        pendingReuploadAction = null;
+        document.getElementById('reupload-modal').classList.add('hidden');
+        if (cb) cb();
+      });
+
+      // Toast close
+      document.getElementById('new-emp-toast-close').addEventListener('click', () => {
+        document.getElementById('new-emp-toast').classList.add('hidden');
+      });
     }
 
     // ================================================================
@@ -946,7 +1315,7 @@
       for (const s of incentiveSchemes) {
         if (d >= new Date(s.validFrom) && d <= new Date(s.validTo)) return s;
       }
-      return incentiveSchemes[0] || DEFAULT_SCHEME;
+      return incentiveSchemes[0] || DEFAULT_SCHEME_TEMPLATE;
     }
 
     function getSchemeForMonth(year, month) {
@@ -995,8 +1364,14 @@
     function closeModal(id) {
       document.getElementById(id).classList.add('hidden');
       document.body.style.overflow = '';
-      saveAllData();
-      if (appData && id !== 'employee-popup' && rawExcelData) processData(rawExcelData);
+      // Re-render reports if relevant data changed (holidays/joiners/managers/schemes)
+      if (appData && id !== 'employee-popup' && id !== 'reupload-modal') {
+        if (rawYtdMonthsData) {
+          processYTDData(rawYtdMonthsData);
+        } else if (rawExcelData) {
+          processData(rawExcelData);
+        }
+      }
     }
 
     // ================================================================
@@ -1015,10 +1390,12 @@
 
     function resetApp() {
       rawExcelData = null;
+      rawYtdMonthsData = null;
       appData = null;
       dateFilter = { from: null, to: null };
       document.getElementById('dashboard').classList.add('hidden');
       document.getElementById('upload-screen').classList.remove('hidden');
+      renderHistoricalPicker();
     }
 
     function showYTDFilesList() {
@@ -1104,33 +1481,243 @@
     }
 
     // ================================================================
-    // SECTION 14: FILE PARSING
+    // SECTION 14: FILE PARSING + CLOUD UPLOAD PIPELINE
     // ================================================================
-    function parseExcelFile(file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const wb = XLSX.read(e.target.result, { type: 'array' });
-          const sheet = wb.Sheets[wb.SheetNames[0]];
-          const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-          rawExcelData = json;
-          processData(json);
-        } catch (err) {
-          alert('Error parsing Excel file');
-          console.error(err);
-        }
-      };
-      reader.readAsArrayBuffer(file);
+
+    // Show/hide the upload progress toast
+    function showUploadProgress(msg) {
+      document.getElementById('upload-progress-body').textContent = msg;
+      document.getElementById('upload-progress-toast').classList.remove('hidden');
+    }
+    function hideUploadProgress() {
+      document.getElementById('upload-progress-toast').classList.add('hidden');
     }
 
+    // Show the "new employees detected" toast
+    function showNewEmployeeToast(newEmps) {
+      if (!newEmps || newEmps.length === 0) return;
+      const list = newEmps.slice(0, 5).map(e => `${e.id} — ${e.name}`).join('<br>');
+      const more = newEmps.length > 5 ? `<br>…and ${newEmps.length - 5} more` : '';
+      document.getElementById('new-emp-toast-body').innerHTML =
+        `${newEmps.length} new employee${newEmps.length>1?'s':''} added from this Excel:<br><span class="font-mono">${list}${more}</span>`;
+      document.getElementById('new-emp-toast').classList.remove('hidden');
+      setTimeout(() => document.getElementById('new-emp-toast').classList.add('hidden'), 10000);
+    }
+
+    // Show re-upload confirmation modal; returns a promise that resolves true/false
+    function confirmReupload(existingMonths) {
+      return new Promise(resolve => {
+        const detailsEl = document.getElementById('reupload-details');
+        const msgEl = document.getElementById('reupload-message');
+        msgEl.textContent = existingMonths.length === 1
+          ? `The following month already exists in the cloud:`
+          : `${existingMonths.length} of the uploaded months already exist in the cloud:`;
+        detailsEl.innerHTML = existingMonths.map(m =>
+          `<div>• ${getMonthName(m.month)} ${m.year} (${m.rowCount} employee rows)</div>`
+        ).join('');
+        document.getElementById('reupload-modal').classList.remove('hidden');
+        pendingReuploadAction = () => resolve(true);
+        document.getElementById('reupload-cancel-btn').onclick = () => {
+          pendingReuploadAction = null;
+          document.getElementById('reupload-modal').classList.add('hidden');
+          resolve(false);
+        };
+      });
+    }
+
+    // Convert an Excel row to a monthly_data DB row (flat columns)
+    function excelRowToMonthlyDataRow(excelRow, empId, year, month) {
+      const row = {
+        employee_pr_id: empId,
+        year, month,
+        daily_target: parseInt(excelRow[6]) || 8,
+        retail_pending: parseInt(excelRow[2]) || 0,
+        prolinks_pending: parseInt(excelRow[4]) || 0,
+        svg_pending: parseInt(excelRow[5]) || 0,
+      };
+      let totalR = 0, totalP = 0, totalS = 0, lastDayWithData = 0;
+      for (let d = 1; d <= 31; d++) {
+        const baseCol = 7 + (d - 1) * 3;
+        const r = parseInt(excelRow[baseCol]) || 0;
+        const p = parseInt(excelRow[baseCol + 1]) || 0;
+        const s = parseInt(excelRow[baseCol + 2]) || 0;
+        row[`day_${d}_retail`]   = r;
+        row[`day_${d}_prolinks`] = p;
+        row[`day_${d}_svg`]      = s;
+        totalR += r; totalP += p; totalS += s;
+        if (r > 0 || p > 0 || s > 0) lastDayWithData = d;
+      }
+      row.total_retail = totalR;
+      row.total_prolinks = totalP;
+      row.total_svg = totalS;
+      row.total_output = totalR + totalP + totalS;
+      row.last_day_with_data = lastDayWithData;
+      // total_points / working_incentive / holiday_pay / total_earnings are computed later
+      // during render; we leave them at 0 here (still saved as defaults).
+      return row;
+    }
+
+    // Extract employees (id + name + daily_target) and monthly_data rows from a single Excel json
+    function extractFromExcelJson(jsonData) {
+      const { month, year } = parseMonthFromCellF1(jsonData);
+      const monthlyRows = [];
+      const empRows = [];
+      for (let i = 4; i < jsonData.length - 2; i++) {
+        const row = jsonData[i];
+        if (!row || !row[1]) continue;
+        const decoName = row[1]?.toString() || '';
+        const prMatch = decoName.match(/\(PR\d+\)/);
+        if (!prMatch) continue;
+        const empId = prMatch[0].replace(/[()]/g, '');
+        const name = decoName.replace(/\s*\(PR\d+\)/, '').trim();
+        const daily_target = parseInt(row[6]) || 8;
+        empRows.push({ pr_id: empId, name, daily_target });
+        monthlyRows.push(excelRowToMonthlyDataRow(row, empId, year, month));
+      }
+      return { year, month, empRows, monthlyRows };
+    }
+
+    // Saves an Excel-extracted payload to Supabase (employees + monthly_data)
+    // Returns { newEmployees: [{id, name}] } for toast display
+    async function saveExtractedToCloud(extracted) {
+      const { year, month, empRows, monthlyRows } = extracted;
+
+      // Detect NEW employees (not yet in employeesMap)
+      const newEmployees = empRows
+        .filter(e => !employeesMap.has(e.pr_id))
+        .map(e => ({ id: e.pr_id, name: e.name }));
+
+      // Upsert employees (creates new, updates name/target for existing)
+      showUploadProgress(`Saving ${empRows.length} employee records…`);
+      const { error: empErr } = await sb.from('employees')
+        .upsert(empRows.map(e => ({ pr_id: e.pr_id, name: e.name, daily_target: e.daily_target, last_seen_at: new Date().toISOString() })),
+                { onConflict: 'pr_id' });
+      if (empErr) throw empErr;
+      empRows.forEach(e => employeesMap.set(e.pr_id, { name: e.name, daily_target: e.daily_target, status: employeesMap.get(e.pr_id)?.status || 'active' }));
+
+      // Check if this month already exists in DB → if so, DELETE first and back up
+      showUploadProgress(`Checking existing ${getMonthName(month)} ${year} data…`);
+      const { data: existing, error: existErr } = await sb.from('monthly_data')
+        .select('*').eq('year', year).eq('month', month);
+      if (existErr) throw existErr;
+
+      if (existing && existing.length > 0) {
+        // Back up old rows to audit_log BEFORE deletion
+        showUploadProgress(`Backing up existing ${existing.length} rows…`);
+        await writeAudit(
+          'monthly_data_overwrite', 'monthly_data',
+          `${year}-${String(month).padStart(2,'0')}`,
+          { backed_up_rows: existing, replaced_at: new Date().toISOString() }
+        );
+        const { error: delErr } = await sb.from('monthly_data').delete().eq('year', year).eq('month', month);
+        if (delErr) throw delErr;
+      }
+
+      // Insert fresh rows (batched in chunks of 100 to be safe)
+      showUploadProgress(`Inserting ${monthlyRows.length} rows for ${getMonthName(month)} ${year}…`);
+      for (let i = 0; i < monthlyRows.length; i += 100) {
+        const chunk = monthlyRows.slice(i, i + 100);
+        const { error: insErr } = await sb.from('monthly_data').insert(chunk);
+        if (insErr) throw insErr;
+      }
+
+      await writeAudit(
+        existing.length > 0 ? 'monthly_data_replace' : 'monthly_data_upload',
+        'monthly_data',
+        `${year}-${String(month).padStart(2,'0')}`,
+        { row_count: monthlyRows.length, new_employees: newEmployees.length }
+      );
+
+      // Update availableMonths cache
+      const key = year + '-' + month;
+      if (!availableMonths.some(m => (m.year + '-' + m.month) === key)) {
+        availableMonths.push({ year, month });
+        availableMonths.sort((a, b) => (a.year * 100 + a.month) - (b.year * 100 + b.month));
+      }
+
+      return { newEmployees };
+    }
+
+    // MTD upload entry point — reads Excel, checks for conflicts, saves, renders
+    async function parseExcelFile(file) {
+      try {
+        const json = await readExcelFileAsync(file);
+        const extracted = extractFromExcelJson(json);
+
+        // Check if this month already exists → prompt for confirmation
+        const existingMatch = availableMonths.find(m => m.year === extracted.year && m.month === extracted.month);
+        if (existingMatch) {
+          const { count } = await sb.from('monthly_data').select('*', { count: 'exact', head: true })
+            .eq('year', extracted.year).eq('month', extracted.month);
+          const confirmed = await confirmReupload([{ year: extracted.year, month: extracted.month, rowCount: count || 0 }]);
+          if (!confirmed) return;
+        }
+
+        showUploadProgress(`Processing ${file.name}…`);
+        const { newEmployees } = await saveExtractedToCloud(extracted);
+        hideUploadProgress();
+
+        if (newEmployees.length > 0) showNewEmployeeToast(newEmployees);
+
+        // Now render the report
+        rawExcelData = json;
+        rawYtdMonthsData = null;
+        processData(json);
+      } catch (err) {
+        hideUploadProgress();
+        console.error('Upload failed:', err);
+        alert('Upload failed: ' + err.message);
+      }
+    }
+
+    // YTD upload entry point — reads all files, checks conflicts, saves, renders
     async function processYTDFiles() {
       if (ytdFiles.length === 0) return;
-      const allData = [];
-      for (const file of ytdFiles) {
-        const data = await readExcelFileAsync(file);
-        allData.push(data);
+      try {
+        showUploadProgress(`Reading ${ytdFiles.length} files…`);
+        const allData = [];
+        const allExtracted = [];
+        for (const file of ytdFiles) {
+          const data = await readExcelFileAsync(file);
+          allData.push(data);
+          allExtracted.push(extractFromExcelJson(data));
+        }
+
+        // Check which months already exist
+        const conflicts = [];
+        for (const ex of allExtracted) {
+          if (availableMonths.some(m => m.year === ex.year && m.month === ex.month)) {
+            const { count } = await sb.from('monthly_data').select('*', { count: 'exact', head: true })
+              .eq('year', ex.year).eq('month', ex.month);
+            conflicts.push({ year: ex.year, month: ex.month, rowCount: count || 0 });
+          }
+        }
+        if (conflicts.length > 0) {
+          hideUploadProgress();
+          const confirmed = await confirmReupload(conflicts);
+          if (!confirmed) return;
+        }
+
+        // Save each month's data to cloud
+        const allNewEmps = new Map();
+        for (let i = 0; i < allExtracted.length; i++) {
+          showUploadProgress(`Saving month ${i+1} of ${allExtracted.length}…`);
+          const { newEmployees } = await saveExtractedToCloud(allExtracted[i]);
+          newEmployees.forEach(e => allNewEmps.set(e.id, e));
+        }
+        hideUploadProgress();
+
+        if (allNewEmps.size > 0) showNewEmployeeToast(Array.from(allNewEmps.values()));
+
+        // Render YTD report
+        rawYtdMonthsData = allData;
+        rawExcelData = null;
+        processYTDData(allData);
+      } catch (err) {
+        hideUploadProgress();
+        console.error('YTD upload failed:', err);
+        alert('YTD upload failed: ' + err.message);
       }
-      processYTDData(allData);
     }
 
     function readExcelFileAsync(file) {
@@ -1145,6 +1732,139 @@
         };
         reader.readAsArrayBuffer(file);
       });
+    }
+
+    // ================================================================
+    // SECTION 14B: HISTORICAL VIEW (fetch from DB, no re-upload)
+    // ================================================================
+    function renderHistoricalPicker() {
+      const empty = document.getElementById('historical-empty');
+      const picker = document.getElementById('historical-picker');
+      const available = document.getElementById('hv-available-months');
+      if (availableMonths.length === 0) {
+        empty.classList.remove('hidden');
+        picker.classList.add('hidden');
+        available.textContent = '';
+        return;
+      }
+      empty.classList.add('hidden');
+      picker.classList.remove('hidden');
+
+      // Year dropdown — all years seen in available
+      const years = [...new Set(availableMonths.map(m => m.year))].sort((a,b) => b - a);
+      const yearSel = document.getElementById('hv-year');
+      yearSel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+      // Default to latest year
+      yearSel.value = years[0];
+
+      // Month range dropdowns populated based on year
+      populateMonthDropdownsForYear(years[0]);
+
+      // Show available count
+      available.innerHTML = `<span class="text-emerald-400">✓ ${availableMonths.length} month${availableMonths.length>1?'s':''} uploaded:</span> ${availableMonths.map(m => `${getMonthName(m.month).substring(0,3)} ${m.year}`).join(', ')}`;
+    }
+
+    function populateMonthDropdownsForYear(year) {
+      const monthsInYear = availableMonths.filter(m => m.year === parseInt(year)).map(m => m.month).sort((a,b) => a - b);
+      const fromSel = document.getElementById('hv-from-month');
+      const toSel = document.getElementById('hv-to-month');
+      if (monthsInYear.length === 0) {
+        fromSel.innerHTML = '<option>—</option>';
+        toSel.innerHTML = '<option>—</option>';
+        return;
+      }
+      const options = monthsInYear.map(m => `<option value="${m}">${getMonthName(m)}</option>`).join('');
+      fromSel.innerHTML = options;
+      toSel.innerHTML = options;
+      // Default: from = earliest, to = latest
+      fromSel.value = monthsInYear[0];
+      toSel.value = monthsInYear[monthsInYear.length - 1];
+      updateHvModeHint();
+    }
+
+    function updateHvModeHint() {
+      const fromM = parseInt(document.getElementById('hv-from-month').value);
+      const toM = parseInt(document.getElementById('hv-to-month').value);
+      const hint = document.getElementById('hv-mode-hint');
+      if (fromM === toM) {
+        hint.textContent = '→ MTD (single month)';
+        hint.className = 'px-3 py-2 rounded-lg bg-cyan-900/40 text-cyan-300 text-xs whitespace-nowrap flex items-center';
+      } else if (toM > fromM) {
+        hint.textContent = `→ YTD (${toM - fromM + 1} months)`;
+        hint.className = 'px-3 py-2 rounded-lg bg-purple-900/40 text-purple-300 text-xs whitespace-nowrap flex items-center';
+      } else {
+        hint.textContent = '⚠️ From must be ≤ To';
+        hint.className = 'px-3 py-2 rounded-lg bg-red-900/40 text-red-300 text-xs whitespace-nowrap flex items-center';
+      }
+    }
+
+    function onHvChange(e) {
+      if (e.target.id === 'hv-year') {
+        populateMonthDropdownsForYear(e.target.value);
+      } else {
+        updateHvModeHint();
+      }
+    }
+
+    async function viewHistoricalReport() {
+      const year = parseInt(document.getElementById('hv-year').value);
+      const fromM = parseInt(document.getElementById('hv-from-month').value);
+      const toM = parseInt(document.getElementById('hv-to-month').value);
+      if (!year || !fromM || !toM) return alert('Pick year and month range');
+      if (toM < fromM) return alert('From month must be ≤ To month');
+
+      try {
+        showUploadProgress(`Loading ${getMonthName(fromM)}${fromM!==toM?' – '+getMonthName(toM):''} ${year}…`);
+
+        // Fetch all monthly_data rows in the range
+        const { data: rows, error } = await sb.from('monthly_data')
+          .select('*')
+          .eq('year', year)
+          .gte('month', fromM)
+          .lte('month', toM)
+          .order('month');
+        if (error) throw error;
+        if (!rows || rows.length === 0) {
+          hideUploadProgress();
+          return alert(`No data found for ${getMonthName(fromM)} ${year}${fromM!==toM?' – '+getMonthName(toM)+' '+year:''}`);
+        }
+
+        // Group rows by month
+        const byMonth = new Map();
+        rows.forEach(r => {
+          if (!byMonth.has(r.month)) byMonth.set(r.month, []);
+          byMonth.get(r.month).push(r);
+        });
+
+        if (fromM === toM) {
+          // MTD mode — reconstruct one synthetic Excel json
+          const synth = reconstructExcelJsonFromMonthlyRows(year, fromM, byMonth.get(fromM) || []);
+          rawExcelData = synth;
+          rawYtdMonthsData = null;
+          hideUploadProgress();
+          processData(synth);
+        } else {
+          // YTD mode — reconstruct one synthetic json per month
+          const allData = [];
+          for (let m = fromM; m <= toM; m++) {
+            if (byMonth.has(m)) {
+              allData.push(reconstructExcelJsonFromMonthlyRows(year, m, byMonth.get(m)));
+            }
+          }
+          if (allData.length === 0) {
+            hideUploadProgress();
+            return alert('No data in selected range');
+          }
+          rawYtdMonthsData = allData;
+          rawExcelData = null;
+          hideUploadProgress();
+          processYTDData(allData);
+        }
+      } catch (err) {
+        hideUploadProgress();
+        console.error('Historical view failed:', err);
+        alert('Failed to load: ' + err.message);
+      }
     }
 
     // ================================================================
@@ -1457,7 +2177,7 @@
         }
       });
 
-      const ytdScheme = incentiveSchemes[0] || DEFAULT_SCHEME;
+      const ytdScheme = incentiveSchemes[0] || DEFAULT_SCHEME_TEMPLATE;
       const thresholds = ytdScheme.thresholds || { targetAchieved: 95, atRisk: 80, nearTarget: 86, terminationYTD: 70 };
       // === DEFENSIVE FALLBACK: Ensure all thresholds present ===
       const termThreshold = thresholds.terminationYTD || 70;
@@ -2895,50 +3615,59 @@
       document.getElementById('holiday-count').textContent = yh.length;
     }
 
-    function addHoliday() {
+    async function addHoliday() {
       const date = document.getElementById('holiday-date').value;
       const name = document.getElementById('holiday-name').value.trim();
       if (!date || !name) return alert('Enter both date and name');
       if (holidays.some(h => h.date === date)) return alert('Holiday exists');
+      const { error } = await sb.from('holidays').insert({ date, name });
+      if (error) return alert('Failed to save: ' + error.message);
       holidays.push({ date, name });
       holidays.sort((a,b) => a.date.localeCompare(b.date));
-      saveAllData();
+      writeAudit('holiday_add', 'holiday', date, { name });
       document.getElementById('holiday-date').value = '';
       document.getElementById('holiday-name').value = '';
       renderHolidayList();
     }
 
-    function removeHoliday(date) {
+    async function removeHoliday(date) {
+      const { error } = await sb.from('holidays').delete().eq('date', date);
+      if (error) return alert('Failed to delete: ' + error.message);
       holidays = holidays.filter(h => h.date !== date);
-      saveAllData();
+      writeAudit('holiday_delete', 'holiday', date, null);
       renderHolidayList();
     }
 
-    function clearAllHolidays() {
+    async function clearAllHolidays() {
       const year = document.getElementById('holiday-year-select').value;
-      if (confirm('Clear all holidays for ' + year + '?')) {
-        holidays = holidays.filter(h => !h.date.startsWith(year));
-        saveAllData();
-        renderHolidayList();
-      }
+      if (!confirm('Clear all holidays for ' + year + '?')) return;
+      const { error } = await sb.from('holidays').delete().eq('year', parseInt(year));
+      if (error) return alert('Failed to clear: ' + error.message);
+      const removed = holidays.filter(h => h.date.startsWith(year));
+      holidays = holidays.filter(h => !h.date.startsWith(year));
+      writeAudit('holiday_clear_year', 'holiday', year, { removed });
+      renderHolidayList();
     }
 
-    function bulkImportHolidays() {
+    async function bulkImportHolidays() {
       const input = document.getElementById('bulk-holiday-input').value.trim();
       if (!input) return;
-      let added = 0;
+      const toInsert = [];
       input.split('\n').filter(l => l.trim()).forEach(line => {
         const parts = line.split(',').map(p => p.trim());
         if (parts.length >= 2 && parts[0].match(/^\d{4}-\d{2}-\d{2}$/) && !holidays.some(h => h.date === parts[0])) {
-          holidays.push({ date: parts[0], name: parts.slice(1).join(', ') });
-          added++;
+          toInsert.push({ date: parts[0], name: parts.slice(1).join(', ') });
         }
       });
+      if (toInsert.length === 0) return alert('No valid new holidays to import');
+      const { error } = await sb.from('holidays').insert(toInsert);
+      if (error) return alert('Failed to import: ' + error.message);
+      toInsert.forEach(h => holidays.push(h));
       holidays.sort((a,b) => a.date.localeCompare(b.date));
-      saveAllData();
+      writeAudit('holiday_bulk_import', 'holiday', null, { count: toInsert.length });
       document.getElementById('bulk-holiday-input').value = '';
       renderHolidayList();
-      alert('Imported ' + added + ' holidays');
+      alert('Imported ' + toInsert.length + ' holidays');
     }
 
     // ================================================================
@@ -2961,7 +3690,7 @@
       document.getElementById('joiner-count').textContent = newJoiners.length;
     }
 
-    function addJoiner() {
+    async function addJoiner() {
       const name = document.getElementById('joiner-name').value.trim();
       let id = document.getElementById('joiner-id').value.trim().toUpperCase();
       const date = document.getElementById('joiner-date').value;
@@ -2969,18 +3698,32 @@
       id = 'PR' + id.replace(/\D/g, '');
       if (id === 'PR') return alert('Invalid ID — no digits found. Example: PR045');
       if (newJoiners.some(j => j.id === id)) return alert('Already exists');
+      // Ensure employee exists in DB (joiners references employees table)
+      await ensureEmployee(id, name, 8);
+      const { error } = await sb.from('new_joiners').insert({ employee_pr_id: id, joining_date: date });
+      if (error) return alert('Failed to save: ' + error.message);
       newJoiners.push({ name, id, date });
-      saveAllData();
+      writeAudit('joiner_add', 'new_joiner', id, { name, date });
       document.getElementById('joiner-name').value = '';
       document.getElementById('joiner-id').value = '';
       document.getElementById('joiner-date').value = '';
       renderJoinerList();
     }
 
-    function removeJoiner(id) {
+    async function removeJoiner(id) {
+      const { error } = await sb.from('new_joiners').delete().eq('employee_pr_id', id);
+      if (error) return alert('Failed to delete: ' + error.message);
       newJoiners = newJoiners.filter(j => j.id !== id);
-      saveAllData();
+      writeAudit('joiner_delete', 'new_joiner', id, null);
       renderJoinerList();
+    }
+
+    // Helper: upsert employee master row (used when adding joiners/resigned/managers)
+    async function ensureEmployee(pr_id, name, daily_target) {
+      if (employeesMap.has(pr_id)) return;
+      const { error } = await sb.from('employees').upsert({ pr_id, name, daily_target: daily_target || 8 }, { onConflict: 'pr_id' });
+      if (error) throw error;
+      employeesMap.set(pr_id, { name, daily_target: daily_target || 8, status: 'active' });
     }
 
     // ================================================================
@@ -3003,7 +3746,7 @@
       document.getElementById('resigned-count').textContent = resignedEmployees.length;
     }
 
-    function addResigned() {
+    async function addResigned() {
       const name = document.getElementById('resigned-name').value.trim();
       let id = document.getElementById('resigned-id').value.trim().toUpperCase();
       const date = document.getElementById('resigned-date').value;
@@ -3011,17 +3754,27 @@
       id = 'PR' + id.replace(/\D/g, '');
       if (id === 'PR') return alert('Invalid ID — no digits found. Example: PR045');
       if (resignedEmployees.some(r => r.id === id)) return alert('Already exists');
+      await ensureEmployee(id, name, 8);
+      const { error } = await sb.from('resigned').insert({ employee_pr_id: id, resigned_date: date });
+      if (error) return alert('Failed to save: ' + error.message);
       resignedEmployees.push({ name, id, date });
-      saveAllData();
+      // Also mark employee status = 'resigned'
+      await sb.from('employees').update({ status: 'resigned' }).eq('pr_id', id);
+      const emp = employeesMap.get(id); if (emp) emp.status = 'resigned';
+      writeAudit('resigned_add', 'resigned', id, { name, date });
       document.getElementById('resigned-name').value = '';
       document.getElementById('resigned-id').value = '';
       document.getElementById('resigned-date').value = '';
       renderResignedList();
     }
 
-    function removeResigned(id) {
+    async function removeResigned(id) {
+      const { error } = await sb.from('resigned').delete().eq('employee_pr_id', id);
+      if (error) return alert('Failed to delete: ' + error.message);
       resignedEmployees = resignedEmployees.filter(r => r.id !== id);
-      saveAllData();
+      await sb.from('employees').update({ status: 'active' }).eq('pr_id', id);
+      const emp = employeesMap.get(id); if (emp) emp.status = 'active';
+      writeAudit('resigned_delete', 'resigned', id, null);
       renderResignedList();
     }
 
@@ -3055,18 +3808,22 @@
       document.getElementById('manager-count').textContent = managers.length;
     }
 
-    function addManager() {
+    async function addManager() {
       const name = document.getElementById('manager-name').value.trim();
       let id = document.getElementById('manager-id').value.trim().toUpperCase();
       const date = document.getElementById('manager-date').value;
       const note = document.getElementById('manager-note').value.trim();
       if (!name || !id || !date) return alert('Fill Name, ID and Effective Date');
-      // === FIX: ALWAYS normalize to PR + digits (strips letter O, spaces, etc) ===
       id = 'PR' + id.replace(/\D/g, '');
       if (id === 'PR') return alert('Invalid ID — no digits found. Example: PR045');
       if (managers.some(m => m.id === id)) return alert('Manager with this ID already exists');
+      await ensureEmployee(id, name, 8);
+      const { error } = await sb.from('managers').insert({
+        employee_pr_id: id, effective_from: date, note: note || null
+      });
+      if (error) return alert('Failed to save: ' + error.message);
       managers.push({ name, id, date, note });
-      saveAllData();
+      writeAudit('manager_add', 'manager', id, { name, date, note });
       document.getElementById('manager-name').value = '';
       document.getElementById('manager-id').value = '';
       document.getElementById('manager-date').value = '';
@@ -3074,10 +3831,12 @@
       renderManagerList();
     }
 
-    function removeManager(id) {
+    async function removeManager(id) {
       if (!confirm('Remove this manager? They will be treated as normal employee again.')) return;
+      const { error } = await sb.from('managers').delete().eq('employee_pr_id', id);
+      if (error) return alert('Failed to delete: ' + error.message);
       managers = managers.filter(m => m.id !== id);
-      saveAllData();
+      writeAudit('manager_delete', 'manager', id, null);
       renderManagerList();
     }
 
@@ -3096,7 +3855,7 @@
     function loadSchemeToForm() {
       const sid = document.getElementById('scheme-selector').value;
       currentSchemeId = sid;
-      const s = incentiveSchemes.find(x => x.id === sid) || DEFAULT_SCHEME;
+      const s = incentiveSchemes.find(x => x.id === sid) || DEFAULT_SCHEME_TEMPLATE;
       document.getElementById('scheme-name').value = s.name || '';
       document.getElementById('scheme-from').value = s.validFrom || '';
       document.getElementById('scheme-to').value = s.validTo || '';
@@ -3134,30 +3893,19 @@
       document.getElementById('penalty-wipe-on-termination').checked = s.penalty?.wipeDebtOnTermination !== false;
     }
 
-    function saveSchemeFromForm() {
+    async function saveSchemeFromForm() {
       // Validate thresholds
       const targetThreshold = parseInt(document.getElementById('threshold-target').value) || 95;
       const nearTargetThreshold = parseInt(document.getElementById('threshold-neartarget').value) || 86;
       const atRiskThreshold = parseInt(document.getElementById('threshold-atrisk').value) || 80;
       const terminationThreshold = parseInt(document.getElementById('threshold-termination').value) || 70;
       
-      if (targetThreshold <= nearTargetThreshold) {
-        return alert('Target Achieved % must be greater than Near Target %');
-      }
-      if (nearTargetThreshold <= atRiskThreshold) {
-        return alert('Near Target % must be greater than At Risk %');
-      }
-      if (atRiskThreshold <= terminationThreshold) {
-        return alert('At Risk % must be greater than YTD Termination %');
-      }
-      if (targetThreshold > 100 || targetThreshold < 50) {
-        return alert('Target Achieved % must be between 50 and 100');
-      }
-      if (terminationThreshold > 90 || terminationThreshold < 40) {
-        return alert('YTD Termination % must be between 40 and 90');
-      }
+      if (targetThreshold <= nearTargetThreshold) return alert('Target Achieved % must be greater than Near Target %');
+      if (nearTargetThreshold <= atRiskThreshold) return alert('Near Target % must be greater than At Risk %');
+      if (atRiskThreshold <= terminationThreshold) return alert('At Risk % must be greater than YTD Termination %');
+      if (targetThreshold > 100 || targetThreshold < 50) return alert('Target Achieved % must be between 50 and 100');
+      if (terminationThreshold > 90 || terminationThreshold < 40) return alert('YTD Termination % must be between 40 and 90');
       
-      // Penalty config
       const penaltyEnabled = document.getElementById('penalty-enabled').checked;
       const pNearTarget = parseInt(document.getElementById('penalty-neartarget').value) || 0;
       const pAtRisk = parseInt(document.getElementById('penalty-atrisk').value) || 0;
@@ -3166,7 +3914,6 @@
       const pCeiling = parseFloat(document.getElementById('penalty-ceiling').value) || 2;
       const pGrace = parseInt(document.getElementById('penalty-grace').value) || 0;
       
-      // Penalty validation
       if (pNearTarget < 0 || pNearTarget > 100 || pAtRisk < 0 || pAtRisk > 100 || pCritical < 0 || pCritical > 100 || pTermination < 0 || pTermination > 100) {
         return alert('Penalty rates must be between 0 and 100');
       }
@@ -3194,30 +3941,37 @@
           wipeDebtOnTermination: document.getElementById('penalty-wipe-on-termination').checked
         }
       };
+      const { error } = await sb.from('schemes').upsert(schemeToDbRow(scheme), { onConflict: 'id' });
+      if (error) return alert('Failed to save: ' + error.message);
       const idx = incentiveSchemes.findIndex(x => x.id === sid);
       if (idx >= 0) incentiveSchemes[idx] = scheme;
       else incentiveSchemes.push(scheme);
-      saveAllData();
+      writeAudit('scheme_save', 'scheme', sid, { penaltyEnabled });
       renderSchemeModal();
       alert('Scheme saved!' + (penaltyEnabled ? '\n\n⚠️ Penalty system is ENABLED. YTD reports will now apply penalties.' : ''));
     }
 
-    function createNewScheme() {
+    async function createNewScheme() {
       const newId = 'scheme_' + Date.now();
-      incentiveSchemes.push({ ...DEFAULT_SCHEME, id: newId, name: 'New Scheme', validFrom: '', validTo: '' });
+      const newScheme = { ...DEFAULT_SCHEME_TEMPLATE, id: newId, name: 'New Scheme', validFrom: '', validTo: '' };
+      const { error } = await sb.from('schemes').insert(schemeToDbRow(newScheme));
+      if (error) return alert('Failed to create: ' + error.message);
+      incentiveSchemes.push(newScheme);
       currentSchemeId = newId;
-      saveAllData();
+      writeAudit('scheme_create', 'scheme', newId, null);
       renderSchemeModal();
     }
 
-    function deleteCurrentScheme() {
+    async function deleteCurrentScheme() {
       if (incentiveSchemes.length <= 1) return alert('Cannot delete last scheme');
-      if (confirm('Delete this scheme?')) {
-        incentiveSchemes = incentiveSchemes.filter(s => s.id !== currentSchemeId);
-        currentSchemeId = incentiveSchemes[0]?.id;
-        saveAllData();
-        renderSchemeModal();
-      }
+      if (!confirm('Delete this scheme?')) return;
+      const { error } = await sb.from('schemes').delete().eq('id', currentSchemeId);
+      if (error) return alert('Failed to delete: ' + error.message);
+      const deletedId = currentSchemeId;
+      incentiveSchemes = incentiveSchemes.filter(s => s.id !== currentSchemeId);
+      currentSchemeId = incentiveSchemes[0]?.id;
+      writeAudit('scheme_delete', 'scheme', deletedId, null);
+      renderSchemeModal();
     }
 
     // ================================================================
@@ -3229,7 +3983,12 @@
       document.getElementById('settings-resigned-count').textContent = resignedEmployees.length;
       document.getElementById('settings-manager-count').textContent = managers.length;
       document.getElementById('settings-scheme-count').textContent = incentiveSchemes.length;
-      // Penalty status indicator
+      const empEl = document.getElementById('settings-employees-count');
+      if (empEl) empEl.textContent = employeesMap.size;
+      const monthsEl = document.getElementById('settings-months-count');
+      if (monthsEl) monthsEl.textContent = availableMonths.length;
+      const userEl = document.getElementById('settings-user-email');
+      if (userEl && currentUser) userEl.textContent = currentUser.email;
       const pStatus = document.getElementById('settings-penalty-status');
       if (pStatus) {
         const sch = incentiveSchemes[0];
@@ -3239,38 +3998,126 @@
       }
     }
 
-    function exportSettings() {
-      const data = { exportDate: new Date().toISOString(), version: '4.0', holidays, newJoiners, resignedEmployees, managers, incentiveSchemes };
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'tracker_settings_' + new Date().toISOString().split('T')[0] + '.json';
-      a.click();
-      URL.revokeObjectURL(url);
-      alert('Settings exported!');
-    }
-
-    function importSettings(e) {
+    // ================================================================
+    // MIGRATION TOOL (one-time import from v4.x settings JSON export)
+    // ================================================================
+    async function runMigration(e) {
       const file = e.target.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          const data = JSON.parse(ev.target.result);
-          if (data.holidays) holidays = data.holidays;
-          if (data.newJoiners) newJoiners = data.newJoiners;
-          if (data.resignedEmployees) resignedEmployees = data.resignedEmployees;
-          if (data.managers) managers = data.managers;
-          if (data.incentiveSchemes) incentiveSchemes = data.incentiveSchemes;
-          if (incentiveSchemes.length > 0) currentSchemeId = incentiveSchemes[0].id;
-          saveAllData();
-          updateSettingsCounts();
-          alert('Settings imported!');
-        } catch (err) { alert('Invalid file'); console.error(err); }
-      };
-      reader.readAsText(file);
       e.target.value = '';
+      if (!confirm('This will IMPORT all settings from the JSON file and add them to the cloud database.\n\nExisting cloud data with matching IDs will be skipped (no overwrite).\n\nContinue?')) return;
+
+      const statusEl = document.getElementById('migration-status');
+      statusEl.classList.remove('hidden');
+      statusEl.innerHTML = '<div class="text-cyan-300">⏳ Reading file…</div>';
+
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const log = [];
+        const append = (icon, msg, cls) => {
+          log.push(`<div class="${cls||'text-gray-300'}">${icon} ${msg}</div>`);
+          statusEl.innerHTML = log.join('');
+        };
+
+        // 1. Holidays
+        if (Array.isArray(data.holidays) && data.holidays.length) {
+          const existing = new Set(holidays.map(h => h.date));
+          const toInsert = data.holidays.filter(h => h.date && h.name && !existing.has(h.date));
+          if (toInsert.length) {
+            const { error } = await sb.from('holidays').insert(toInsert.map(h => ({ date: h.date, name: h.name })));
+            if (error) append('⚠️', `Holidays: ${error.message}`, 'text-red-400');
+            else { toInsert.forEach(h => holidays.push(h)); holidays.sort((a,b)=>a.date.localeCompare(b.date)); append('✓', `Holidays: ${toInsert.length} imported`, 'text-emerald-400'); }
+          } else append('•', 'Holidays: none new to import', 'text-gray-400');
+        }
+
+        // Helpers to normalize PR ID
+        const cleanId = (id) => 'PR' + String(id||'').replace(/\D/g, '');
+
+        // 2. Build employee master set from all referenced IDs (joiners, resigned, managers)
+        const employeesToSeed = new Map();
+        (data.newJoiners||[]).forEach(j => { const id = cleanId(j.id); if (id !== 'PR') employeesToSeed.set(id, { pr_id: id, name: j.name || id, daily_target: 8 }); });
+        (data.resignedEmployees||[]).forEach(r => { const id = cleanId(r.id); if (id !== 'PR') employeesToSeed.set(id, { pr_id: id, name: r.name || id, daily_target: 8, status: 'resigned' }); });
+        (data.managers||[]).forEach(m => { const id = cleanId(m.id); if (id !== 'PR') employeesToSeed.set(id, { pr_id: id, name: m.name || id, daily_target: 8 }); });
+
+        if (employeesToSeed.size > 0) {
+          const rows = Array.from(employeesToSeed.values());
+          const { error } = await sb.from('employees').upsert(rows, { onConflict: 'pr_id', ignoreDuplicates: false });
+          if (error) append('⚠️', `Employees: ${error.message}`, 'text-red-400');
+          else {
+            rows.forEach(r => employeesMap.set(r.pr_id, { name: r.name, daily_target: r.daily_target, status: r.status || 'active' }));
+            append('✓', `Employees: ${rows.length} seeded`, 'text-emerald-400');
+          }
+        }
+
+        // 3. New joiners
+        if (Array.isArray(data.newJoiners) && data.newJoiners.length) {
+          const existing = new Set(newJoiners.map(j => j.id));
+          const toInsert = data.newJoiners
+            .map(j => ({ employee_pr_id: cleanId(j.id), joining_date: j.date, _name: j.name }))
+            .filter(j => j.employee_pr_id !== 'PR' && !existing.has(j.employee_pr_id) && j.joining_date);
+          if (toInsert.length) {
+            const { error } = await sb.from('new_joiners').insert(toInsert.map(({_name, ...rest}) => rest));
+            if (error) append('⚠️', `Joiners: ${error.message}`, 'text-red-400');
+            else { toInsert.forEach(j => newJoiners.push({ id: j.employee_pr_id, name: j._name, date: j.joining_date })); append('✓', `Joiners: ${toInsert.length} imported`, 'text-emerald-400'); }
+          } else append('•', 'Joiners: none new to import', 'text-gray-400');
+        }
+
+        // 4. Resigned
+        if (Array.isArray(data.resignedEmployees) && data.resignedEmployees.length) {
+          const existing = new Set(resignedEmployees.map(r => r.id));
+          const toInsert = data.resignedEmployees
+            .map(r => ({ employee_pr_id: cleanId(r.id), resigned_date: r.date, _name: r.name }))
+            .filter(r => r.employee_pr_id !== 'PR' && !existing.has(r.employee_pr_id) && r.resigned_date);
+          if (toInsert.length) {
+            const { error } = await sb.from('resigned').insert(toInsert.map(({_name, ...rest}) => rest));
+            if (error) append('⚠️', `Resigned: ${error.message}`, 'text-red-400');
+            else { toInsert.forEach(r => resignedEmployees.push({ id: r.employee_pr_id, name: r._name, date: r.resigned_date })); append('✓', `Resigned: ${toInsert.length} imported`, 'text-emerald-400'); }
+          } else append('•', 'Resigned: none new to import', 'text-gray-400');
+        }
+
+        // 5. Managers
+        if (Array.isArray(data.managers) && data.managers.length) {
+          const existing = new Set(managers.map(m => m.id));
+          const toInsert = data.managers
+            .map(m => ({ employee_pr_id: cleanId(m.id), effective_from: m.date, note: m.note || null, _name: m.name }))
+            .filter(m => m.employee_pr_id !== 'PR' && !existing.has(m.employee_pr_id) && m.effective_from);
+          if (toInsert.length) {
+            const { error } = await sb.from('managers').insert(toInsert.map(({_name, ...rest}) => rest));
+            if (error) append('⚠️', `Managers: ${error.message}`, 'text-red-400');
+            else { toInsert.forEach(m => managers.push({ id: m.employee_pr_id, name: m._name, date: m.effective_from, note: m.note || '' })); append('✓', `Managers: ${toInsert.length} imported`, 'text-emerald-400'); }
+          } else append('•', 'Managers: none new to import', 'text-gray-400');
+        }
+
+        // 6. Schemes
+        if (Array.isArray(data.incentiveSchemes) && data.incentiveSchemes.length) {
+          const existing = new Set(incentiveSchemes.map(s => s.id));
+          const toInsert = data.incentiveSchemes.filter(s => s.id && !existing.has(s.id));
+          if (toInsert.length) {
+            // Normalize each scheme to ensure all fields present
+            const normalized = toInsert.map(s => ({ ...DEFAULT_SCHEME_TEMPLATE, ...s,
+              points: { ...DEFAULT_SCHEME_TEMPLATE.points, ...(s.points||{}) },
+              target8: { ...DEFAULT_SCHEME_TEMPLATE.target8, ...(s.target8||{}) },
+              target10: { ...DEFAULT_SCHEME_TEMPLATE.target10, ...(s.target10||{}) },
+              holidayRates: { ...DEFAULT_SCHEME_TEMPLATE.holidayRates, ...(s.holidayRates||{}) },
+              thresholds: { ...DEFAULT_SCHEME_TEMPLATE.thresholds, ...(s.thresholds||{}) },
+              penalty: { ...DEFAULT_SCHEME_TEMPLATE.penalty, ...(s.penalty||{}),
+                rates: { ...DEFAULT_SCHEME_TEMPLATE.penalty.rates, ...((s.penalty||{}).rates||{}) }
+              }
+            }));
+            const { error } = await sb.from('schemes').insert(normalized.map(schemeToDbRow));
+            if (error) append('⚠️', `Schemes: ${error.message}`, 'text-red-400');
+            else { normalized.forEach(s => incentiveSchemes.push(s)); append('✓', `Schemes: ${normalized.length} imported`, 'text-emerald-400'); }
+          } else append('•', 'Schemes: none new to import', 'text-gray-400');
+        }
+
+        await writeAudit('settings_migration', null, null, { source: 'json_import', file: file.name });
+        append('🎉', 'Migration complete!', 'text-emerald-300 font-bold pt-2 border-t border-slate-700 mt-2');
+        updateSettingsCounts();
+      } catch (err) {
+        statusEl.innerHTML = `<div class="text-red-400">❌ ${err.message}</div>`;
+        console.error(err);
+      }
     }
 
     // ================================================================
