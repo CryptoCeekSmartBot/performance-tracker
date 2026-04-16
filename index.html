@@ -1305,38 +1305,60 @@
       return 0;
     }
 
-    // === NEW JOINER GRACE PERIOD (real calendar math) ===
-    // Signature changed (was monthIdx-based, now year/month-based).
-    // Returns true if the employee's D.O.J. is within N calendar months of the
-    // target month (year/month). "Within N months" means monthsElapsed < N.
-    //   Example: DOJ = 2025-08-01, target = 2025-08 → 0 months → grace (if N≥1)
-    //            DOJ = 2025-08-01, target = 2025-09 → 1 month  → grace (if N≥2)
-    //            DOJ = 2025-08-01, target = 2025-10 → 2 months → NO grace (N=2)
-    function isInNewJoinerGrace(empId, year, month, scheme) {
+    // === NEW JOINER GRACE PERIOD (Option C — date-based, generous) ===
+    // Grace runs from D.O.J. for N calendar months. Grace applies to any MONTH
+    // whose FIRST DAY falls strictly before the grace cutoff.
+    //   graceEnd = D.O.J. + N months (same-day shift)
+    //   grace(year, month) = (firstDayOfThatMonth < graceEnd)
+    //
+    // Examples for SWATI ADHIKARI, D.O.J. = 2025-12-15, N = 2:
+    //   graceEnd = 2026-02-15
+    //   Dec 2025: firstDay 2025-12-01 < 2026-02-15 → ✅ grace
+    //   Jan 2026: firstDay 2026-01-01 < 2026-02-15 → ✅ grace
+    //   Feb 2026: firstDay 2026-02-01 < 2026-02-15 → ✅ grace (training still ongoing mid-Feb)
+    //   Mar 2026: firstDay 2026-03-01 < 2026-02-15 → ❌ no grace (normal review)
+    function _computeGraceEndDate(empId, scheme) {
       const grace = scheme?.penalty?.newJoinerGraceMonths ?? 2;
-      if (grace <= 0) return false;
+      if (grace <= 0) return null;
       const joiner = getJoinerInfo(empId);
-      if (!joiner || !joiner.date) return false;
-      const dj = new Date(joiner.date);
-      if (isNaN(dj)) return false;
-      const monthsElapsed = (year - dj.getFullYear()) * 12 + (month - (dj.getMonth() + 1));
-      return monthsElapsed >= 0 && monthsElapsed < grace;
+      if (!joiner || !joiner.date) return null;
+      const dj = new Date(joiner.date + 'T00:00:00');
+      if (isNaN(dj)) return null;
+      // Add N months preserving day-of-month (JS handles month overflow automatically)
+      const graceEnd = new Date(dj.getFullYear(), dj.getMonth() + grace, dj.getDate());
+      return graceEnd;
+    }
+
+    function isInNewJoinerGrace(empId, year, month, scheme) {
+      const graceEnd = _computeGraceEndDate(empId, scheme);
+      if (!graceEnd) return false;
+      const firstOfMonth = new Date(year, month - 1, 1);
+      return firstOfMonth < graceEnd;
     }
 
     // === IS EMPLOYEE CURRENTLY A "RECENT" JOINER? (for 🆕 badge display) ===
-    // True only if joined within last `graceMonths` of TODAY's date.
-    // Used so old employees (joined >2 months ago) don't keep showing 🆕 badge.
+    // True if TODAY is still before the grace cutoff date.
     function isRecentJoiner(empId) {
       const scheme = incentiveSchemes[0] || DEFAULT_SCHEME_TEMPLATE;
-      const grace = scheme?.penalty?.newJoinerGraceMonths ?? 2;
-      if (grace <= 0) return false;
-      const joiner = getJoinerInfo(empId);
-      if (!joiner || !joiner.date) return false;
-      const dj = new Date(joiner.date);
-      if (isNaN(dj)) return false;
+      const graceEnd = _computeGraceEndDate(empId, scheme);
+      if (!graceEnd) return false;
       const today = new Date();
-      const monthsSinceJoining = (today.getFullYear() - dj.getFullYear()) * 12 + (today.getMonth() - dj.getMonth());
-      return monthsSinceJoining >= 0 && monthsSinceJoining < grace;
+      return today < graceEnd;
+    }
+
+    // === WAS EMPLOYEE IN GRACE FOR ANY MONTH IN THE YTD VIEW? ===
+    // Used by termination-risk logic to avoid flagging trainees.
+    // Returns true if ANY of the provided months falls within grace period.
+    function wasInGraceForAnyMonth(empId, monthsList, scheme) {
+      if (!monthsList || monthsList.length === 0) return false;
+      const graceEnd = _computeGraceEndDate(empId, scheme);
+      if (!graceEnd) return false;
+      for (const m of monthsList) {
+        if (!m || !m.year || !m.month) continue;
+        const firstOfMonth = new Date(m.year, m.month - 1, 1);
+        if (firstOfMonth < graceEnd) return true;
+      }
+      return false;
     }
 
     // Tier meta for UI (color, label, icon)
@@ -2295,8 +2317,15 @@
         const isResigned = !!getResignedInfo(emp.id);
         const hasJoinerRecord = !!getJoinerInfo(emp.id);
         const isNewJoiner = isRecentJoiner(emp.id);  // for 🆕 badge display only
-        // TERMINATION RISK: Below threshold AND not resigned AND NOT a manager AND has had some target review period
-        const isTerminationRisk = !isManager && achievementPct < termThreshold && !isResigned && emp.targetRequired > 0;
+        // GRACE EXEMPTION: If the employee was in grace period for ANY month
+        // in this YTD view, they're still in/just past training → don't flag
+        // for termination. (Matches the "don't judge trainees" principle.)
+        const wasInGrace = hasJoinerRecord && wasInGraceForAnyMonth(emp.id, emp.months, ytdScheme);
+        // TERMINATION RISK: Below threshold AND not resigned AND not a manager
+        // AND has a target review period AND not protected by grace period.
+        const isTerminationRisk = !isManager && achievementPct < termThreshold
+                                && !isResigned && emp.targetRequired > 0
+                                && !wasInGrace;
         const ytdTier = getPenaltyTier(achievementPct, thresholds);
         
         // ================================================================
@@ -2431,7 +2460,8 @@
           totalEarnings: emp.workingIncentive + emp.holidayPay,
           trend: ytdTrend, alerts: [],
           isNewJoiner,
-          isResigned
+          isResigned,
+          wasInGrace
         };
       });
 
