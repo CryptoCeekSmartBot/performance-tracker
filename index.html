@@ -24,10 +24,23 @@
     .light-mode .text-gray-400, .light-mode .text-gray-500 { color: #64748b !important; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    @keyframes pulseRed { 0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); } }
+    @keyframes pulseGlow { 0%, 100% { background-color: rgba(127, 29, 29, 0.3); } 50% { background-color: rgba(127, 29, 29, 0.6); } }
+    @keyframes slideInLeft { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
     .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
     .animate-scale-in { animation: scaleIn 0.2s ease-out forwards; }
+    .animate-pulse-red { animation: pulseRed 2s infinite; }
+    .animate-pulse-glow { animation: pulseGlow 2.5s ease-in-out infinite; }
+    .animate-slide-in { animation: slideInLeft 0.4s ease-out forwards; }
+    .termination-row { background: linear-gradient(90deg, rgba(127, 29, 29, 0.25), rgba(127, 29, 29, 0.1)) !important; border-left: 3px solid #dc2626; }
+    .termination-row:hover { background: linear-gradient(90deg, rgba(127, 29, 29, 0.4), rgba(127, 29, 29, 0.2)) !important; }
+    .heatmap-cell { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .heatmap-cell:hover { transform: scale(1.15); z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+    .cell-star { background: linear-gradient(135deg, #065f46, #10b981); }
+    .cell-termination { background: linear-gradient(135deg, #450a0a, #7f1d1d); }
     .gradient-text { background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .gradient-gold { background: linear-gradient(135deg, #f59e0b, #eab308); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .gradient-red { background: linear-gradient(135deg, #dc2626, #991b1b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .cell-green { background: linear-gradient(135deg, #059669, #10b981); }
     .cell-yellow { background: linear-gradient(135deg, #d97706, #f59e0b); }
     .cell-red { background: linear-gradient(135deg, #dc2626, #ef4444); }
@@ -131,9 +144,11 @@
             <select id="filter-select" class="bg-slate-800 border border-slate-700 text-gray-100 px-3 py-2 rounded-lg text-sm">
               <option value="all">All Status</option>
               <option value="targetachieved">🎯 Target Achieved</option>
+              <option value="notachieved">❌ Target NOT Achieved</option>
               <option value="ontrack">✅ On Track</option>
               <option value="atrisk">⚠️ At Risk</option>
               <option value="critical">🔴 Critical</option>
+              <option value="termination">⚫ TERMINATION RISK (YTD)</option>
               <option value="star">⭐ Stars</option>
               <option value="incentive">💰 Earning</option>
               <option value="newjoiners">🆕 Joiners</option>
@@ -149,7 +164,7 @@
               <option value="shortfall-asc">Shortfall (Low→High)</option>
               <option value="incentive-desc">Earnings (High→Low)</option>
             </select>
-            <div class="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1">
+            <div id="date-filter-container" class="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1">
               <span class="text-xs text-gray-400">From:</span>
               <input type="date" id="date-from" class="bg-transparent text-gray-100 text-sm focus:outline-none w-32">
               <span class="text-xs text-gray-400">To:</span>
@@ -162,12 +177,30 @@
       </header>
 
       <main class="max-w-[1920px] mx-auto p-4 space-y-6">
+        
+        <!-- ========== YTD HERO BANNER (YTD ONLY) ========== -->
+        <div id="ytd-hero" class="hidden"></div>
+        
+        <!-- ========== YTD TERMINATION RISK PANEL (YTD ONLY) ========== -->
+        <div id="ytd-termination-panel" class="hidden"></div>
+        
+        <!-- ========== MTD SUMMARY CARDS ========== -->
         <div id="summary-cards" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-3"></div>
-        <div class="grid lg:grid-cols-3 gap-4">
+        
+        <!-- ========== YTD CHARTS ROW (YTD ONLY) ========== -->
+        <div id="ytd-charts" class="hidden"></div>
+        
+        <!-- ========== YTD HEATMAP (YTD ONLY) ========== -->
+        <div id="ytd-heatmap" class="hidden"></div>
+        
+        <!-- ========== CHAMPION + LEADERBOARD ========== -->
+        <div id="champion-leaderboard-row" class="grid lg:grid-cols-3 gap-4">
           <div id="champion-card" class="bg-gradient-to-br from-amber-900/30 to-yellow-900/20 border border-slate-800 rounded-xl p-6"></div>
           <div id="leaderboard-card" class="bg-slate-900 border border-slate-800 rounded-xl p-4 lg:col-span-2"></div>
         </div>
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        
+        <!-- ========== LEGEND (MTD ONLY) ========== -->
+        <div id="mtd-legend" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
           <div class="flex flex-wrap items-center gap-4 justify-center text-sm">
             <div class="flex items-center gap-2">
               <span class="font-semibold text-xs">Points:</span>
@@ -181,11 +214,15 @@
             <span class="text-emerald-400 text-xs">↑Up</span><span class="text-gray-400 text-xs">→Stable</span><span class="text-red-400 text-xs">↓Down</span>
           </div>
         </div>
+        
+        <!-- ========== MAIN TABLE ========== -->
         <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
           <div class="overflow-x-auto max-h-[70vh] overflow-y-auto"><table id="main-table" class="w-full text-sm"><thead id="table-header" class="bg-slate-900 sticky top-0 z-20"></thead><tbody id="table-body"></tbody></table></div>
         </div>
+        
+        <!-- ========== FOOTER STATS ========== -->
         <div id="footer-stats" class="grid md:grid-cols-3 gap-4"></div>
-        <div class="text-center text-gray-500 text-sm py-4 no-print">Performance Tracker Pro v3.0</div>
+        <div class="text-center text-gray-500 text-sm py-4 no-print">Performance Tracker Pro v4.0</div>
       </main>
     </div>
 
@@ -346,14 +383,14 @@
               <div class="bg-gradient-to-br from-amber-900/20 to-orange-900/20 border border-amber-700/30 rounded-xl p-4">
                 <h3 class="font-semibold text-amber-400 mb-3">🎯 Achievement Thresholds</h3>
                 <p class="text-xs text-gray-400 mb-3">Configure the percentage thresholds for target achievement status</p>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-3 gap-4">
                   <div><label class="block text-xs text-gray-400 mb-1">🟢 Target Achieved (%)</label><input type="number" id="threshold-target" value="95" min="50" max="100" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
                   <div><label class="block text-xs text-gray-400 mb-1">🟡 At Risk (%)</label><input type="number" id="threshold-atrisk" value="80" min="50" max="100" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-red-400 mb-1">⚫ YTD Termination (%)</label><input type="number" id="threshold-termination" value="70" min="40" max="90" class="w-full bg-slate-700 border border-red-700/50 px-3 py-2 rounded-lg text-sm text-center text-red-300"></div>
                 </div>
-                <div class="mt-3 text-xs text-gray-500">
-                  <span class="text-emerald-400">● Green:</span> ≥ Target % | 
-                  <span class="text-amber-400">● Yellow:</span> ≥ At Risk % | 
-                  <span class="text-red-400">● Red:</span> Below At Risk %
+                <div class="mt-3 text-xs text-gray-500 space-y-1">
+                  <div><span class="text-emerald-400">● Green:</span> ≥ Target % | <span class="text-amber-400">● Yellow:</span> ≥ At Risk % | <span class="text-red-400">● Red:</span> Below At Risk %</div>
+                  <div class="pt-1 border-t border-slate-700 mt-1"><span class="text-red-500 font-semibold">⚫ YTD Termination:</span> <span class="text-gray-400">Employees below this % across combined months in YTD are flagged for termination review (management configurable, default 70%). This threshold applies ONLY to YTD reports.</span></div>
                 </div>
               </div>
             </div>
@@ -409,7 +446,7 @@
     <div id="employee-popup" class="fixed inset-0 z-50 hidden">
       <div class="modal-overlay absolute inset-0" onclick="closeModal('employee-popup')"></div>
       <div class="relative z-10 flex items-center justify-center min-h-screen p-4">
-        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-scale-in">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden animate-scale-in">
           <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
             <div><h2 id="popup-employee-name" class="text-xl font-bold">Employee</h2><p id="popup-employee-id" class="text-sm text-gray-400"></p></div>
             <button onclick="closeModal('employee-popup')" class="p-2 hover:bg-slate-800 rounded-lg">✕</button>
@@ -477,7 +514,7 @@
       target8: { minPoints: 7, targetPoints: 8, exceedPoints: 9, minRate: 7, targetRate: 8, exceedRate: 9 },
       target10: { minPoints: 9, targetPoints: 10, exceedPoints: 11, minRate: 7, targetRate: 8, exceedRate: 9 },
       holidayRates: { leadgen: 75, prolink: 100, svg: 75 },
-      thresholds: { targetAchieved: 95, atRisk: 80 }
+      thresholds: { targetAchieved: 95, atRisk: 80, terminationYTD: 70 }
     };
 
     let holidays = [];
@@ -999,6 +1036,7 @@
           totalDone, totalRetail, totalProlinks, totalSvg, totalPoints,
           targetRequired, shortfall, achievementPct, workingDays,
           targetThresholdValue, isTargetAchieved,
+          isTerminationRisk: false,
           workingIncentive: totalWorkingIncentive, holidayPay: totalHolidayPay,
           totalEarnings: totalWorkingIncentive + totalHolidayPay,
           workingDayBreakdown, holidayBreakdown,
@@ -1030,25 +1068,39 @@
     }
 
     // ================================================================
-    // SECTION 16: YTD DATA PROCESSING
+    // SECTION 16: YTD DATA PROCESSING (ENHANCED v4.0)
     // ================================================================
     function processYTDData(allMonthsData) {
+      // === CRITICAL FIX: Auto-sort files by month+year chronologically ===
+      allMonthsData.sort((a, b) => {
+        const ma = parseMonthFromCellF1(a);
+        const mb = parseMonthFromCellF1(b);
+        return (ma.year * 100 + ma.month) - (mb.year * 100 + mb.month);
+      });
+
       const empMap = new Map();
+      const monthsMetadata = []; // Track each month's metadata for charts
 
       allMonthsData.forEach(jsonData => {
-        // NEW: Parse month/year from Cell F1 (e.g., "JANUARY 2026") instead of Cell A1
         const { month: currentMonth, year: currentYear } = parseMonthFromCellF1(jsonData);
         const daysInMonth = getDaysInMonth(currentYear, currentMonth);
-        
-        // NEW: Auto-detect the last day with data
         const lastDayWithData = detectLastDayWithData(jsonData, daysInMonth);
         
-        // Determine effective last day: for past months use full month, for current month use last day with data
         const today = new Date();
         const isCurrentMonth = (today.getFullYear() === currentYear && today.getMonth() + 1 === currentMonth);
         const currentDay = isCurrentMonth ? Math.max(lastDayWithData, 1) : daysInMonth;
         
         const scheme = getSchemeForMonth(currentYear, currentMonth);
+        const fullMonthWorkingDays = getWorkingDaysInRange(currentYear, currentMonth, 1, currentDay);
+
+        monthsMetadata.push({
+          month: currentMonth,
+          year: currentYear,
+          label: `${getMonthName(currentMonth)} ${currentYear}`,
+          shortLabel: getMonthName(currentMonth),
+          workingDays: fullMonthWorkingDays,
+          currentDay
+        });
 
         for (let i = 4; i < jsonData.length - 2; i++) {
           const row = jsonData[i];
@@ -1059,33 +1111,68 @@
 
           const empId = prMatch[0].replace(/[()]/g, '');
           const dailyTarget = parseInt(row[6]) || 8;
-          let monthOutput = 0, monthPoints = 0, monthWI = 0, monthHP = 0;
-          const workingDays = getWorkingDaysInRange(currentYear, currentMonth, 1, currentDay);
 
-          for (let day = 1; day <= currentDay; day++) {
-            const baseCol = 7 + (day - 1) * 3;
-            const r = parseInt(row[baseCol]) || 0;
-            const p = parseInt(row[baseCol + 1]) || 0;
-            const s = parseInt(row[baseCol + 2]) || 0;
-            monthOutput += r + p + s;
+          // === PRO-RATE NEW JOINERS: Determine effective date range ===
+          const joinerInfo = getJoinerInfo(empId);
+          const resignedInfo = getResignedInfo(empId);
+          let effFromDay = 1;
+          let effToDay = currentDay;
+          let empActiveThisMonth = true;
 
-            if (isNonWorkingDay(currentYear, currentMonth, day)) {
-              monthHP += calculateHolidayPay(r, p, s, scheme);
-            } else {
-              const pts = calculatePoints(r, p, s, scheme);
-              monthPoints += pts;
-              monthWI += calculateDailyIncentive(pts, dailyTarget, scheme).amount;
+          if (joinerInfo) {
+            const jd = new Date(joinerInfo.date);
+            const jYear = jd.getFullYear(), jMonth = jd.getMonth() + 1, jDay = jd.getDate();
+            // If joined AFTER this month, skip entirely
+            if (jYear > currentYear || (jYear === currentYear && jMonth > currentMonth)) {
+              empActiveThisMonth = false;
+            } else if (jYear === currentYear && jMonth === currentMonth) {
+              effFromDay = Math.max(1, jDay);
+            }
+          }
+          if (resignedInfo) {
+            const rd = new Date(resignedInfo.date);
+            const rYear = rd.getFullYear(), rMonth = rd.getMonth() + 1, rDay = rd.getDate();
+            if (rYear < currentYear || (rYear === currentYear && rMonth < currentMonth)) {
+              empActiveThisMonth = false;
+            } else if (rYear === currentYear && rMonth === currentMonth) {
+              effToDay = Math.min(currentDay, rDay);
             }
           }
 
-          const monthTarget = dailyTarget * workingDays;
+          let monthOutput = 0, monthPoints = 0, monthWI = 0, monthHP = 0;
+          let monthRetail = 0, monthProlinks = 0, monthSvg = 0;
+          const effectiveWorkingDays = empActiveThisMonth ? getWorkingDaysInRange(currentYear, currentMonth, effFromDay, effToDay) : 0;
+
+          if (empActiveThisMonth) {
+            for (let day = effFromDay; day <= effToDay; day++) {
+              const baseCol = 7 + (day - 1) * 3;
+              const r = parseInt(row[baseCol]) || 0;
+              const p = parseInt(row[baseCol + 1]) || 0;
+              const s = parseInt(row[baseCol + 2]) || 0;
+              monthRetail += r; monthProlinks += p; monthSvg += s;
+              monthOutput += r + p + s;
+
+              if (isNonWorkingDay(currentYear, currentMonth, day)) {
+                monthHP += calculateHolidayPay(r, p, s, scheme);
+              } else {
+                const pts = calculatePoints(r, p, s, scheme);
+                monthPoints += pts;
+                monthWI += calculateDailyIncentive(pts, dailyTarget, scheme).amount;
+              }
+            }
+          }
+
+          const monthTarget = dailyTarget * effectiveWorkingDays;
+          const monthPct = monthTarget > 0 ? (monthOutput / monthTarget * 100) : 0;
 
           if (!empMap.has(empId)) {
             empMap.set(empId, {
               name: decoName.replace(/\s*\(PR\d+\)/, '').trim(),
               id: empId, fullName: decoName, dailyTarget,
               totalDone: 0, totalPoints: 0, targetRequired: 0, workingDays: 0,
-              workingIncentive: 0, holidayPay: 0, months: []
+              totalRetail: 0, totalProlinks: 0, totalSvg: 0,
+              workingIncentive: 0, holidayPay: 0, months: [],
+              activeMonthsCount: 0
             });
           }
 
@@ -1093,43 +1180,80 @@
           emp.totalDone += monthOutput;
           emp.totalPoints += monthPoints;
           emp.targetRequired += monthTarget;
-          emp.workingDays += workingDays;
+          emp.workingDays += effectiveWorkingDays;
+          emp.totalRetail += monthRetail;
+          emp.totalProlinks += monthProlinks;
+          emp.totalSvg += monthSvg;
           emp.workingIncentive += monthWI;
           emp.holidayPay += monthHP;
-          emp.months.push({ month: currentMonth, year: currentYear, output: monthOutput, target: monthTarget, points: monthPoints, workingIncentive: monthWI, holidayPay: monthHP });
+          if (empActiveThisMonth && effectiveWorkingDays > 0) emp.activeMonthsCount++;
+          emp.months.push({
+            month: currentMonth, year: currentYear,
+            label: `${getMonthName(currentMonth)} ${currentYear}`,
+            shortLabel: getMonthName(currentMonth),
+            output: monthOutput, target: monthTarget, points: monthPoints,
+            retail: monthRetail, prolinks: monthProlinks, svg: monthSvg,
+            workingIncentive: monthWI, holidayPay: monthHP,
+            workingDays: effectiveWorkingDays,
+            achievementPct: monthPct,
+            isActive: empActiveThisMonth,
+            isProRated: empActiveThisMonth && (effFromDay > 1 || effToDay < currentDay)
+          });
         }
       });
 
       const ytdScheme = incentiveSchemes[0] || DEFAULT_SCHEME;
-      const thresholds = ytdScheme.thresholds || { targetAchieved: 95, atRisk: 80 };
+      const thresholds = ytdScheme.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
       
       const employees = Array.from(empMap.values()).map(emp => {
         const targetThresholdValue = Math.floor(emp.targetRequired * thresholds.targetAchieved / 100);
         const isTargetAchieved = emp.totalDone >= targetThresholdValue;
+        const achievementPct = emp.targetRequired > 0 ? (emp.totalDone / emp.targetRequired * 100) : 0;
+        const isResigned = !!getResignedInfo(emp.id);
+        const isNewJoiner = !!getJoinerInfo(emp.id);
+        // TERMINATION RISK: Below configured threshold AND not already resigned
+        const isTerminationRisk = achievementPct < thresholds.terminationYTD && !isResigned && emp.targetRequired > 0;
+        // Calc trend from months (compare first half vs second half)
+        let ytdTrend = 'stable';
+        if (emp.months.length >= 2) {
+          const half = Math.floor(emp.months.length / 2);
+          const firstHalf = emp.months.slice(0, half).filter(m=>m.isActive);
+          const secondHalf = emp.months.slice(-half).filter(m=>m.isActive);
+          if (firstHalf.length && secondHalf.length) {
+            const avgFirst = firstHalf.reduce((s,m)=>s+m.achievementPct,0)/firstHalf.length;
+            const avgSecond = secondHalf.reduce((s,m)=>s+m.achievementPct,0)/secondHalf.length;
+            if (avgSecond - avgFirst > 5) ytdTrend = 'up';
+            else if (avgFirst - avgSecond > 5) ytdTrend = 'down';
+          }
+        }
         return {
           ...emp,
           shortfall: Math.max(0, emp.targetRequired - emp.totalDone),
-          achievementPct: emp.targetRequired > 0 ? (emp.totalDone / emp.targetRequired * 100) : 0,
+          achievementPct,
           targetThresholdValue,
           isTargetAchieved,
+          isTerminationRisk,
           totalEarnings: emp.workingIncentive + emp.holidayPay,
-          trend: 'stable', alerts: [],
-          isNewJoiner: !!getJoinerInfo(emp.id),
-          isResigned: !!getResignedInfo(emp.id)
+          trend: ytdTrend, alerts: [],
+          isNewJoiner,
+          isResigned
         };
       });
 
       const sorted = [...employees].sort((a, b) => b.achievementPct - a.achievementPct);
-      const avgWD = employees.length > 0 ? Math.round(employees.reduce((s, e) => s + e.workingDays, 0) / employees.length) : 0;
+      const totalWD = employees.reduce((s, e) => s + e.workingDays, 0);
+      const avgWD = employees.length > 0 ? Math.round(totalWD / employees.length) : 0;
 
       appData = {
         employees, currentDay: 0, currentMonth: 0, currentYear: 2026,
         filterFromDay: 1, filterToDay: 31,
         scheme: ytdScheme,
+        monthsMetadata,
         reportDate: 'YTD Report',
-        dateRangeText: `${ytdFiles.length} Months Combined`,
+        dateRangeText: `${monthsMetadata.length} Months: ${monthsMetadata.map(m=>m.shortLabel).join(' → ')}`,
         workingDays: avgWD,
         leaderboard: sorted.slice(0, 5),
+        bottom5: [...sorted].reverse().slice(0, 5),
         champion: sorted[0],
         teamStats: calcTeamStats(employees, avgWD, ytdScheme),
         isYTD: true
@@ -1168,13 +1292,17 @@
     function calcTeamStats(employees, wd, scheme) {
       const total = employees.length;
       if (total === 0) return {};
-      const thresholds = scheme?.thresholds || { targetAchieved: 95, atRisk: 80 };
+      const thresholds = scheme?.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
+      const termPct = thresholds.terminationYTD || 70;
       return {
         total,
         avgAchievement: employees.reduce((a, b) => a + b.achievementPct, 0) / total,
+        star: employees.filter(e => e.achievementPct >= 110).length,
         onTrack: employees.filter(e => e.achievementPct >= thresholds.targetAchieved).length,
         atRisk: employees.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < thresholds.targetAchieved).length,
-        critical: employees.filter(e => e.achievementPct < thresholds.atRisk).length,
+        critical: employees.filter(e => e.achievementPct >= termPct && e.achievementPct < thresholds.atRisk).length,
+        termination: employees.filter(e => e.isTerminationRisk).length,
+        notAchievedCount: employees.filter(e => !e.isTargetAchieved).length,
         targetAchievedCount: employees.filter(e => e.isTargetAchieved).length,
         totalOutput: employees.reduce((a, b) => a + b.totalDone, 0),
         totalTarget: employees.reduce((a, b) => a + b.targetRequired, 0),
@@ -1216,13 +1344,56 @@
     }
 
     function renderDashboard() {
+      // Set report type badge based on mode
+      const badge = document.getElementById('report-type-badge');
+      if (appData.isYTD) {
+        badge.textContent = 'YTD';
+        badge.className = 'px-3 py-1 rounded-full text-xs font-medium bg-purple-900/50 text-purple-400';
+      } else {
+        badge.textContent = 'MTD';
+        badge.className = 'px-3 py-1 rounded-full text-xs font-medium bg-cyan-900/50 text-cyan-400';
+      }
+      
       document.getElementById('report-date-badge').textContent = '📅 ' + appData.dateRangeText;
       document.getElementById('working-days-badge').textContent = '✅ ' + appData.workingDays + ' Working Days';
-      renderSummaryCards();
-      renderChampion();
-      renderLeaderboard();
-      renderTable();
-      renderFooterStats();
+      
+      if (appData.isYTD) {
+        // YTD Mode: Hide MTD-only sections, show YTD sections
+        document.getElementById('summary-cards').classList.add('hidden');
+        document.getElementById('mtd-legend').classList.add('hidden');
+        document.getElementById('champion-leaderboard-row').classList.add('hidden');
+        document.getElementById('date-filter-container').classList.add('hidden');
+        document.getElementById('ytd-hero').classList.remove('hidden');
+        document.getElementById('ytd-charts').classList.remove('hidden');
+        document.getElementById('ytd-heatmap').classList.remove('hidden');
+        // Termination panel conditional
+        if (appData.teamStats.termination > 0) {
+          document.getElementById('ytd-termination-panel').classList.remove('hidden');
+        } else {
+          document.getElementById('ytd-termination-panel').classList.add('hidden');
+        }
+        renderYTDHero();
+        renderTerminationPanel();
+        renderYTDCharts();
+        renderYTDHeatmap();
+        renderTable();
+        renderYTDFooterStats();
+      } else {
+        // MTD Mode: Show MTD sections, hide YTD
+        document.getElementById('summary-cards').classList.remove('hidden');
+        document.getElementById('mtd-legend').classList.remove('hidden');
+        document.getElementById('champion-leaderboard-row').classList.remove('hidden');
+        document.getElementById('date-filter-container').classList.remove('hidden');
+        document.getElementById('ytd-hero').classList.add('hidden');
+        document.getElementById('ytd-termination-panel').classList.add('hidden');
+        document.getElementById('ytd-charts').classList.add('hidden');
+        document.getElementById('ytd-heatmap').classList.add('hidden');
+        renderSummaryCards();
+        renderChampion();
+        renderLeaderboard();
+        renderTable();
+        renderFooterStats();
+      }
     }
 
     // ================================================================
@@ -1284,9 +1455,11 @@
       if (searchTerm) list = list.filter(e => e.fullName.toLowerCase().includes(searchTerm.toLowerCase()));
       switch(filterStatus) {
         case 'targetachieved': list = list.filter(e => e.isTargetAchieved); break;
+        case 'notachieved': list = list.filter(e => !e.isTargetAchieved); break;
         case 'ontrack': list = list.filter(e => e.achievementPct >= thresholds.targetAchieved); break;
         case 'atrisk': list = list.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < thresholds.targetAchieved); break;
         case 'critical': list = list.filter(e => e.achievementPct < thresholds.atRisk); break;
+        case 'termination': list = list.filter(e => e.isTerminationRisk); break;
         case 'star': list = list.filter(e => e.achievementPct >= 110); break;
         case 'incentive': list = list.filter(e => e.workingIncentive > 0); break;
         case 'newjoiners': list = list.filter(e => e.isNewJoiner); break;
@@ -1330,6 +1503,7 @@
           <th class="px-4 py-3 text-left font-semibold border-b border-slate-700">Employee</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">T</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">Months</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">Trend</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-cyan-400">Output</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-purple-400">Points</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">Target</th>
@@ -1337,27 +1511,52 @@
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">🎯</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">Gap</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">%</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">Status</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-emerald-400">W.Inc</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-purple-400">H.Pay</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-amber-400">Total ₹</th>
         </tr>`;
-        document.getElementById('table-body').innerHTML = employees.map((e, idx) => `
-          <tr class="hover:bg-slate-800 cursor-pointer ${idx%2?'bg-slate-900/50':''}" onclick="showEmployeePopup('${e.id}')">
-            <td class="px-4 py-2 border-b border-slate-700"><div class="font-medium">${e.name}</div><div class="text-xs text-gray-500">(${e.id})${e.isNewJoiner?'<span class="ml-1 px-1 bg-blue-600 rounded text-[10px]">🆕</span>':''}${e.isResigned?'<span class="ml-1 px-1 bg-orange-600 rounded text-[10px]">🚪</span>':''}</div></td>
+        document.getElementById('table-body').innerHTML = employees.map((e, idx) => {
+          const termPct = thresholds.terminationYTD || 70;
+          // Per-month colored dots
+          const monthDots = (e.months||[]).map(m => {
+            if (!m.isActive) return '<span class="inline-block w-2 h-2 rounded-full bg-slate-700" title="Not active"></span>';
+            let color = '#7f1d1d';
+            if (m.achievementPct >= 110) color = '#10b981';
+            else if (m.achievementPct >= thresholds.targetAchieved) color = '#059669';
+            else if (m.achievementPct >= thresholds.atRisk) color = '#f59e0b';
+            else if (m.achievementPct >= termPct) color = '#dc2626';
+            return `<span class="inline-block w-2 h-2 rounded-full" style="background:${color}" title="${m.shortLabel}: ${m.achievementPct.toFixed(1)}%"></span>`;
+          }).join(' ');
+          
+          const statusBadge = e.isTerminationRisk
+            ? '<span class="px-2 py-0.5 bg-red-900/80 border border-red-600 rounded text-[10px] text-red-200 font-bold animate-pulse-red inline-block">⚫ TERMINATE</span>'
+            : e.achievementPct >= thresholds.targetAchieved
+            ? '<span class="px-2 py-0.5 bg-emerald-900/60 rounded text-[10px] text-emerald-300">✓ Achieved</span>'
+            : e.achievementPct >= thresholds.atRisk
+            ? '<span class="px-2 py-0.5 bg-amber-900/60 rounded text-[10px] text-amber-300">⚠️ At Risk</span>'
+            : '<span class="px-2 py-0.5 bg-red-900/60 rounded text-[10px] text-red-300">🔴 Critical</span>';
+          
+          const rowClass = e.isTerminationRisk ? 'termination-row' : (idx%2?'bg-slate-900/50':'');
+          
+          return `<tr class="hover:bg-slate-800 cursor-pointer ${rowClass}" onclick="showEmployeePopup('${e.id}')">
+            <td class="px-4 py-2 border-b border-slate-700"><div class="font-medium">${e.name}${e.isTerminationRisk?' ⚫':''}</div><div class="text-xs text-gray-500 flex items-center gap-1">(${e.id})${e.isNewJoiner?'<span class="ml-1 px-1 bg-blue-600 rounded text-[10px]">🆕</span>':''}${e.isResigned?'<span class="ml-1 px-1 bg-orange-600 rounded text-[10px]">🚪</span>':''} <span class="ml-1 flex gap-0.5">${monthDots}</span></div></td>
             <td class="px-3 py-2 text-center border-b border-slate-700 font-bold">${e.dailyTarget}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700">${e.months?.length||0}</td>
+            <td class="px-3 py-2 text-center border-b border-slate-700 text-lg ${e.trend==='up'?'text-emerald-400':e.trend==='down'?'text-red-400':'text-gray-400'}">${e.trend==='up'?'↑':e.trend==='down'?'↓':'→'}</td>
             <td class="px-3 py-2 text-center font-bold border-b border-slate-700 text-cyan-400">${e.totalDone}</td>
             <td class="px-3 py-2 text-center font-bold border-b border-slate-700 text-purple-400">${e.totalPoints}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700">${e.targetRequired}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700 text-amber-400 font-medium">${e.targetThresholdValue||0}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700"><div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-xs font-bold text-white ${e.isTargetAchieved?'cell-green':'cell-red'}">${e.isTargetAchieved?'✓':'✗'}</div></td>
             <td class="px-3 py-2 text-center font-bold border-b border-slate-700 ${e.shortfall>0?'text-red-400':'text-emerald-400'}">${e.shortfall>0?'-'+e.shortfall:'0'}</td>
-            <td class="px-3 py-2 text-center border-b border-slate-700"><span class="font-bold ${e.achievementPct>=thresholds.targetAchieved?'text-emerald-400':e.achievementPct>=thresholds.atRisk?'text-amber-400':'text-red-400'}">${e.achievementPct.toFixed(0)}%</span></td>
+            <td class="px-3 py-2 text-center border-b border-slate-700"><span class="font-bold text-base ${e.achievementPct>=thresholds.targetAchieved?'text-emerald-400':e.achievementPct>=thresholds.atRisk?'text-amber-400':e.achievementPct>=termPct?'text-red-400':'text-red-600'}">${e.achievementPct.toFixed(0)}%</span></td>
+            <td class="px-3 py-2 text-center border-b border-slate-700">${statusBadge}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700 text-emerald-400 font-medium">₹${e.workingIncentive}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700 text-purple-400 font-medium">₹${e.holidayPay}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700 text-amber-400 font-bold">₹${e.totalEarnings}</td>
-          </tr>
-        `).join('');
+          </tr>`;
+        }).join('');
       } else {
         // MTD Table with daily cells
         const dayHeaders = [];
@@ -1464,48 +1663,613 @@
     
 
     // ================================================================
+    // SECTION 24B: YTD-SPECIFIC RENDERING (v4.0)
+    // ================================================================
+    
+    function renderYTDHero() {
+      const s = appData.teamStats;
+      const months = appData.monthsMetadata || [];
+      const termCount = s.termination || 0;
+      const termPct = s.thresholds?.terminationYTD || 70;
+      const targetPct = s.thresholds?.targetAchieved || 95;
+      
+      const criticalBanner = termCount > 0 ? `
+        <div class="mt-4 bg-gradient-to-r from-red-950 via-red-900 to-red-950 border-2 border-red-600 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 animate-pulse-glow">
+          <div class="flex items-center gap-4">
+            <div class="text-4xl">🚨</div>
+            <div>
+              <div class="text-xl font-bold text-red-300">TERMINATION REVIEW REQUIRED</div>
+              <div class="text-sm text-red-200"><strong>${termCount}</strong> employee${termCount>1?'s':''} performing below <strong>${termPct}%</strong> YTD threshold — immediate management review needed</div>
+            </div>
+          </div>
+          <button onclick="document.getElementById('filter-select').value='termination';document.getElementById('filter-select').dispatchEvent(new Event('change'));document.getElementById('ytd-termination-panel').scrollIntoView({behavior:'smooth'});" class="px-5 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-bold text-white animate-pulse-red">Review Now →</button>
+        </div>
+      ` : `
+        <div class="mt-4 bg-gradient-to-r from-emerald-950/50 to-emerald-900/30 border border-emerald-700/50 rounded-xl p-4 flex items-center gap-4">
+          <div class="text-3xl">✅</div>
+          <div><div class="font-bold text-emerald-300">No Termination Risks</div><div class="text-sm text-emerald-200/80">All employees performing above ${termPct}% YTD threshold</div></div>
+        </div>
+      `;
+      
+      document.getElementById('ytd-hero').innerHTML = `
+        <div class="bg-gradient-to-br from-purple-950 via-slate-900 to-blue-950 border border-purple-800/50 rounded-2xl p-6 shadow-2xl">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div class="text-xs uppercase tracking-widest text-purple-400 mb-1">📈 Year-to-Date Performance Analysis</div>
+              <h1 class="text-3xl md:text-4xl font-bold gradient-text mb-2">${months.length}-Month Combined Report</h1>
+              <div class="flex flex-wrap items-center gap-2 text-sm text-gray-400">
+                <span class="px-3 py-1 bg-slate-800/70 rounded-full">📅 ${months.map(m=>m.shortLabel+' '+m.year).join(' → ')}</span>
+                <span class="px-3 py-1 bg-purple-900/30 border border-purple-700/50 rounded-full text-purple-300">🎯 Target: ${targetPct}%</span>
+                <span class="px-3 py-1 bg-red-900/30 border border-red-700/50 rounded-full text-red-300">⚫ Termination: &lt;${termPct}%</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mt-5 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+            <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
+              <div class="text-xs uppercase text-gray-500 mb-1">👥 Employees</div>
+              <div class="text-2xl font-bold text-white">${s.total}</div>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
+              <div class="text-xs uppercase text-cyan-400 mb-1">📅 Months</div>
+              <div class="text-2xl font-bold text-cyan-400">${months.length}</div>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
+              <div class="text-xs uppercase text-blue-400 mb-1">📊 Total Output</div>
+              <div class="text-2xl font-bold text-blue-400">${(s.totalOutput||0).toLocaleString()}</div>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
+              <div class="text-xs uppercase text-purple-400 mb-1">🎯 Combined Target</div>
+              <div class="text-2xl font-bold text-purple-400">${(s.totalTarget||0).toLocaleString()}</div>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
+              <div class="text-xs uppercase ${s.avgAchievement>=targetPct?'text-emerald-400':s.avgAchievement>=s.thresholds.atRisk?'text-amber-400':'text-red-400'} mb-1">📈 Avg Achieved</div>
+              <div class="text-2xl font-bold ${s.avgAchievement>=targetPct?'text-emerald-400':s.avgAchievement>=s.thresholds.atRisk?'text-amber-400':'text-red-400'}">${(s.avgAchievement||0).toFixed(1)}%</div>
+            </div>
+            <div class="bg-gradient-to-br from-emerald-900/40 to-emerald-800/20 border border-emerald-700/50 rounded-xl p-3">
+              <div class="text-xs uppercase text-emerald-400 mb-1">✅ Achieved ${targetPct}%</div>
+              <div class="text-2xl font-bold text-emerald-400">${s.targetAchievedCount||0}<span class="text-sm text-gray-400">/${s.total}</span></div>
+            </div>
+            <div class="bg-gradient-to-br from-amber-900/40 to-orange-800/20 border border-amber-700/50 rounded-xl p-3">
+              <div class="text-xs uppercase text-amber-400 mb-1">❌ Not Achieved</div>
+              <div class="text-2xl font-bold text-amber-400">${s.notAchievedCount||0}</div>
+            </div>
+            <div class="bg-gradient-to-br from-red-950 to-red-900/40 border-2 ${termCount>0?'border-red-500':'border-red-800/50'} rounded-xl p-3">
+              <div class="text-xs uppercase text-red-400 mb-1">⚫ Termination</div>
+              <div class="text-2xl font-bold ${termCount>0?'text-red-400':'text-gray-500'}">${termCount}</div>
+            </div>
+          </div>
+          
+          ${criticalBanner}
+        </div>
+      `;
+    }
+    
+    function renderTerminationPanel() {
+      const s = appData.teamStats;
+      const termPct = s.thresholds?.terminationYTD || 70;
+      const termEmps = appData.employees.filter(e => e.isTerminationRisk).sort((a,b) => a.achievementPct - b.achievementPct);
+      
+      if (termEmps.length === 0) {
+        document.getElementById('ytd-termination-panel').innerHTML = '';
+        return;
+      }
+      
+      document.getElementById('ytd-termination-panel').innerHTML = `
+        <div class="bg-gradient-to-br from-red-950/70 via-slate-950 to-red-950/70 border-2 border-red-600/60 rounded-2xl overflow-hidden shadow-2xl">
+          <div class="bg-gradient-to-r from-red-900/80 to-red-950/80 border-b-2 border-red-600 px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-red-600 flex items-center justify-center text-2xl animate-pulse-red">⚠️</div>
+              <div>
+                <h2 class="text-xl font-bold text-red-200">TERMINATION RISK EMPLOYEES</h2>
+                <p class="text-sm text-red-300/80">Performing below <strong>${termPct}%</strong> YTD threshold • Requires immediate management review</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-3xl font-bold text-red-400">${termEmps.length}</div>
+              <div class="text-xs text-red-300 uppercase">Employee${termEmps.length>1?'s':''}</div>
+            </div>
+          </div>
+          
+          <div class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            ${termEmps.map((e, idx) => {
+              const initials = e.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+              const activeMonths = (e.months||[]).filter(m=>m.isActive);
+              const sparkPoints = activeMonths.map((m,i,arr) => {
+                const x = arr.length > 1 ? (i/(arr.length-1))*100 : 50;
+                const y = 40 - (Math.min(m.achievementPct, 120)/120)*40;
+                return `${x},${y}`;
+              }).join(' ');
+              return `
+                <div onclick="showEmployeePopup('${e.id}')" class="bg-gradient-to-br from-red-950/50 to-slate-900/80 border border-red-700/50 rounded-xl p-4 cursor-pointer hover:border-red-500 hover:shadow-xl hover:shadow-red-900/50 transition-all animate-slide-in" style="animation-delay:${idx*0.05}s">
+                  <div class="flex items-start gap-3 mb-3">
+                    <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center font-bold text-white text-sm shrink-0">${initials}</div>
+                    <div class="min-w-0 flex-1">
+                      <div class="font-bold text-red-100 truncate">${e.name}</div>
+                      <div class="text-xs text-red-300/70">${e.id} • Target ${e.dailyTarget}/day</div>
+                      ${e.isNewJoiner?'<div class="mt-1"><span class="px-1.5 py-0.5 bg-blue-600/50 rounded text-[10px] text-blue-200">🆕 New Joiner</span></div>':''}
+                    </div>
+                  </div>
+                  
+                  <div class="grid grid-cols-3 gap-2 mb-3">
+                    <div class="text-center"><div class="text-[10px] text-gray-400">Output</div><div class="font-bold text-cyan-400">${e.totalDone}</div></div>
+                    <div class="text-center"><div class="text-[10px] text-gray-400">Target</div><div class="font-bold text-gray-300">${e.targetRequired}</div></div>
+                    <div class="text-center"><div class="text-[10px] text-gray-400">Gap</div><div class="font-bold text-red-400">-${e.shortfall}</div></div>
+                  </div>
+                  
+                  <div class="bg-black/40 rounded-lg p-2 mb-2">
+                    <div class="flex items-center justify-between text-xs text-red-300 mb-1">
+                      <span>Achievement</span>
+                      <span class="font-bold text-lg text-red-400">${e.achievementPct.toFixed(1)}%</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div class="h-full bg-gradient-to-r from-red-600 to-red-400" style="width:${Math.min(e.achievementPct, 100)}%"></div>
+                    </div>
+                    <div class="text-[10px] text-red-400/70 mt-1">${termPct}% required to avoid termination review</div>
+                  </div>
+                  
+                  ${activeMonths.length > 1 ? `
+                    <div class="bg-slate-950/60 rounded-lg p-2">
+                      <div class="text-[10px] text-gray-400 mb-1">Monthly Trend (${activeMonths.length} months)</div>
+                      <svg viewBox="0 0 100 40" class="w-full h-10" preserveAspectRatio="none">
+                        <line x1="0" y1="${40-(termPct/120)*40}" x2="100" y2="${40-(termPct/120)*40}" stroke="#7f1d1d" stroke-dasharray="2,2" stroke-width="0.5" />
+                        <polyline points="${sparkPoints}" fill="none" stroke="#ef4444" stroke-width="1.5" />
+                        ${activeMonths.map((m,i,arr) => {
+                          const x = arr.length > 1 ? (i/(arr.length-1))*100 : 50;
+                          const y = 40 - (Math.min(m.achievementPct, 120)/120)*40;
+                          return `<circle cx="${x}" cy="${y}" r="1.5" fill="#ef4444"/>`;
+                        }).join('')}
+                      </svg>
+                      <div class="flex justify-between text-[9px] text-gray-500 mt-0.5">
+                        ${activeMonths.map(m=>`<span>${m.shortLabel}</span>`).join('')}
+                      </div>
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    function renderYTDCharts() {
+      const s = appData.teamStats;
+      const months = appData.monthsMetadata || [];
+      const thresholds = s.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
+      
+      // === CHART 1: Achievement Distribution Donut ===
+      const buckets = [
+        { label: 'Star (≥110%)', value: s.star || 0, color: '#10b981' },
+        { label: `Achieved (${thresholds.targetAchieved}-109%)`, value: Math.max(0, (s.onTrack||0) - (s.star||0)), color: '#059669' },
+        { label: `At Risk (${thresholds.atRisk}-${thresholds.targetAchieved-1}%)`, value: s.atRisk || 0, color: '#f59e0b' },
+        { label: `Critical (${thresholds.terminationYTD}-${thresholds.atRisk-1}%)`, value: s.critical || 0, color: '#dc2626' },
+        { label: `Termination (<${thresholds.terminationYTD}%)`, value: s.termination || 0, color: '#7f1d1d' }
+      ];
+      const totalBucket = buckets.reduce((a,b) => a+b.value, 0) || 1;
+      let cumAngle = -Math.PI/2;
+      const donutArcs = buckets.map(b => {
+        if (b.value === 0) return '';
+        const angle = (b.value/totalBucket) * Math.PI * 2;
+        const startAngle = cumAngle;
+        const endAngle = cumAngle + angle;
+        const largeArc = angle > Math.PI ? 1 : 0;
+        const x1 = 60 + 45 * Math.cos(startAngle), y1 = 60 + 45 * Math.sin(startAngle);
+        const x2 = 60 + 45 * Math.cos(endAngle), y2 = 60 + 45 * Math.sin(endAngle);
+        const x3 = 60 + 28 * Math.cos(endAngle), y3 = 60 + 28 * Math.sin(endAngle);
+        const x4 = 60 + 28 * Math.cos(startAngle), y4 = 60 + 28 * Math.sin(startAngle);
+        cumAngle = endAngle;
+        // Handle full circle edge case
+        if (b.value === totalBucket) {
+          return `<circle cx="60" cy="60" r="45" fill="${b.color}" opacity="0.95"/><circle cx="60" cy="60" r="28" fill="#0f172a"/>`;
+        }
+        return `<path d="M ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A 28 28 0 ${largeArc} 0 ${x4} ${y4} Z" fill="${b.color}" opacity="0.95"><title>${b.label}: ${b.value} employees</title></path>`;
+      }).join('');
+      
+      const donutChart = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="font-semibold mb-3 flex items-center gap-2"><span>🎯</span><span>Achievement Distribution</span></div>
+          <div class="flex items-center gap-4">
+            <svg viewBox="0 0 120 120" class="w-32 h-32 shrink-0">
+              ${donutArcs}
+              <text x="60" y="58" text-anchor="middle" fill="#f3f4f6" font-size="16" font-weight="bold">${s.total}</text>
+              <text x="60" y="72" text-anchor="middle" fill="#9ca3af" font-size="7">employees</text>
+            </svg>
+            <div class="flex-1 space-y-1.5 text-xs min-w-0">
+              ${buckets.map(b => `
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <div class="w-3 h-3 rounded shrink-0" style="background:${b.color}"></div>
+                    <span class="truncate text-gray-300">${b.label}</span>
+                  </div>
+                  <span class="font-bold text-white shrink-0">${b.value}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // === CHART 2: Monthly Team Trend Line Chart ===
+      const monthlyAvg = months.map(m => {
+        const allEmpsInMonth = appData.employees.map(e => e.months.find(em => em.month===m.month && em.year===m.year)).filter(x=>x&&x.isActive&&x.target>0);
+        const avg = allEmpsInMonth.length > 0 ? allEmpsInMonth.reduce((sum,em)=>sum+em.achievementPct, 0) / allEmpsInMonth.length : 0;
+        return { label: m.shortLabel, value: avg };
+      });
+      const maxTrendY = 130, minTrendY = 40;
+      const trendW = 280, trendH = 140;
+      const chartPadding = { left: 30, right: 10, top: 15, bottom: 25 };
+      const plotW = trendW - chartPadding.left - chartPadding.right;
+      const plotH = trendH - chartPadding.top - chartPadding.bottom;
+      const scaleY = v => chartPadding.top + plotH - ((Math.max(minTrendY, Math.min(v, maxTrendY))-minTrendY)/(maxTrendY-minTrendY))*plotH;
+      const scaleX = i => chartPadding.left + (i/(monthlyAvg.length-1||1))*plotW;
+      const trendPoints = monthlyAvg.map((m,i) => `${scaleX(i)},${scaleY(m.value)}`).join(' ');
+      const targetLine = scaleY(thresholds.targetAchieved);
+      const termLine = scaleY(thresholds.terminationYTD);
+      
+      const trendChart = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="font-semibold mb-3 flex items-center gap-2"><span>📈</span><span>Team Monthly Trend</span></div>
+          <svg viewBox="0 0 ${trendW} ${trendH}" class="w-full h-36">
+            ${[50, 70, 90, 110].map(v => `<line x1="${chartPadding.left}" y1="${scaleY(v)}" x2="${trendW-chartPadding.right}" y2="${scaleY(v)}" stroke="#334155" stroke-width="0.3" stroke-dasharray="2,2"/><text x="${chartPadding.left-4}" y="${scaleY(v)+3}" text-anchor="end" fill="#64748b" font-size="8">${v}%</text>`).join('')}
+            <line x1="${chartPadding.left}" y1="${targetLine}" x2="${trendW-chartPadding.right}" y2="${targetLine}" stroke="#10b981" stroke-width="0.8" stroke-dasharray="4,2"/>
+            <text x="${trendW-chartPadding.right-2}" y="${targetLine-2}" text-anchor="end" fill="#10b981" font-size="7">Target ${thresholds.targetAchieved}%</text>
+            <line x1="${chartPadding.left}" y1="${termLine}" x2="${trendW-chartPadding.right}" y2="${termLine}" stroke="#dc2626" stroke-width="0.8" stroke-dasharray="4,2"/>
+            <text x="${trendW-chartPadding.right-2}" y="${termLine+8}" text-anchor="end" fill="#dc2626" font-size="7">Termination ${thresholds.terminationYTD}%</text>
+            <defs><linearGradient id="trendGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs>
+            <polyline points="${trendPoints}" fill="none" stroke="url(#trendGrad)" stroke-width="2.5" stroke-linejoin="round"/>
+            ${monthlyAvg.map((m,i) => `<circle cx="${scaleX(i)}" cy="${scaleY(m.value)}" r="3" fill="${m.value>=thresholds.targetAchieved?'#10b981':m.value>=thresholds.atRisk?'#f59e0b':'#dc2626'}" stroke="#0f172a" stroke-width="1.5"><title>${m.label}: ${m.value.toFixed(1)}%</title></circle><text x="${scaleX(i)}" y="${scaleY(m.value)-8}" text-anchor="middle" fill="#f3f4f6" font-size="8" font-weight="bold">${m.value.toFixed(0)}%</text>`).join('')}
+            ${monthlyAvg.map((m,i) => `<text x="${scaleX(i)}" y="${trendH-8}" text-anchor="middle" fill="#9ca3af" font-size="9">${m.label}</text>`).join('')}
+          </svg>
+        </div>
+      `;
+      
+      // === CHART 3: Top 5 vs Bottom 5 Horizontal Bar ===
+      const top5 = appData.leaderboard || [];
+      const bottom5 = appData.bottom5 || [];
+      const maxAch = Math.max(...appData.employees.map(e=>e.achievementPct), 100);
+      const topBottomChart = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="font-semibold mb-3 flex items-center gap-2"><span>🏆</span><span>Top 5 vs Bottom 5</span></div>
+          <div class="space-y-1.5">
+            <div class="text-[10px] uppercase text-emerald-400 font-semibold">🥇 Top Performers</div>
+            ${top5.map((e,i) => `
+              <div class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-800/50 rounded px-1 py-0.5" onclick="showEmployeePopup('${e.id}')">
+                <span class="w-4 text-gray-400">${i+1}</span>
+                <span class="w-20 truncate text-gray-200">${e.name}</span>
+                <div class="flex-1 h-3 bg-slate-800 rounded overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-emerald-600 to-emerald-400" style="width:${Math.min((e.achievementPct/maxAch)*100, 100)}%"></div>
+                </div>
+                <span class="w-12 text-right font-bold text-emerald-400">${e.achievementPct.toFixed(0)}%</span>
+              </div>
+            `).join('')}
+            <div class="border-t border-slate-700 my-2"></div>
+            <div class="text-[10px] uppercase text-red-400 font-semibold">⬇️ Needs Attention</div>
+            ${bottom5.map((e,i) => `
+              <div class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-800/50 rounded px-1 py-0.5" onclick="showEmployeePopup('${e.id}')">
+                <span class="w-4 text-gray-400">${i+1}</span>
+                <span class="w-20 truncate text-gray-200">${e.name}${e.isTerminationRisk?' ⚫':''}</span>
+                <div class="flex-1 h-3 bg-slate-800 rounded overflow-hidden">
+                  <div class="h-full ${e.isTerminationRisk?'bg-gradient-to-r from-red-900 to-red-600':'bg-gradient-to-r from-red-600 to-amber-500'}" style="width:${Math.min((e.achievementPct/maxAch)*100, 100)}%"></div>
+                </div>
+                <span class="w-12 text-right font-bold ${e.isTerminationRisk?'text-red-500':'text-amber-400'}">${e.achievementPct.toFixed(0)}%</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+      
+      // === CHART 4: Monthly Output vs Target Grouped Bar ===
+      const monthlyTotals = months.map(m => {
+        const allMonthsData = appData.employees.map(e => e.months.find(em => em.month===m.month && em.year===m.year)).filter(x=>x&&x.isActive);
+        const output = allMonthsData.reduce((sum,em)=>sum+em.output, 0);
+        const target = allMonthsData.reduce((sum,em)=>sum+em.target, 0);
+        return { label: m.shortLabel, output, target };
+      });
+      const maxMonthlyVal = Math.max(...monthlyTotals.flatMap(m => [m.output, m.target]), 1);
+      const barChartW = 280, barChartH = 140;
+      const barCount = monthlyTotals.length || 1;
+      const groupW = (barChartW - 40) / barCount;
+      const barW = Math.min(groupW / 2.5, 20);
+      
+      const monthlyBarChart = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="font-semibold mb-3 flex items-center gap-2"><span>📊</span><span>Monthly Output vs Target</span></div>
+          <svg viewBox="0 0 ${barChartW} ${barChartH}" class="w-full h-36">
+            ${[0.25, 0.5, 0.75, 1].map(r => `<line x1="30" y1="${15 + (1-r)*(barChartH-40)}" x2="${barChartW-10}" y2="${15 + (1-r)*(barChartH-40)}" stroke="#334155" stroke-width="0.3" stroke-dasharray="2,2"/><text x="28" y="${18 + (1-r)*(barChartH-40)}" text-anchor="end" fill="#64748b" font-size="7">${Math.round(maxMonthlyVal*r).toLocaleString()}</text>`).join('')}
+            ${monthlyTotals.map((m,i) => {
+              const x = 30 + i*groupW + groupW/2;
+              const targetH = (m.target/maxMonthlyVal)*(barChartH-40);
+              const outputH = (m.output/maxMonthlyVal)*(barChartH-40);
+              const pct = m.target>0 ? (m.output/m.target*100) : 0;
+              return `
+                <rect x="${x-barW-1}" y="${barChartH-25-targetH}" width="${barW}" height="${targetH}" fill="#475569" opacity="0.8" rx="1"><title>${m.label} Target: ${m.target.toLocaleString()}</title></rect>
+                <rect x="${x+1}" y="${barChartH-25-outputH}" width="${barW}" height="${outputH}" fill="${pct>=thresholds.targetAchieved?'#10b981':pct>=thresholds.atRisk?'#f59e0b':'#dc2626'}" rx="1"><title>${m.label} Output: ${m.output.toLocaleString()} (${pct.toFixed(1)}%)</title></rect>
+                <text x="${x}" y="${barChartH-10}" text-anchor="middle" fill="#9ca3af" font-size="9">${m.label}</text>
+                <text x="${x}" y="${barChartH-25-Math.max(targetH,outputH)-3}" text-anchor="middle" fill="#f3f4f6" font-size="8" font-weight="bold">${pct.toFixed(0)}%</text>
+              `;
+            }).join('')}
+          </svg>
+          <div class="flex justify-center gap-4 mt-2 text-xs">
+            <div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-500 rounded"></div><span class="text-gray-400">Target</span></div>
+            <div class="flex items-center gap-1"><div class="w-3 h-3 bg-emerald-500 rounded"></div><span class="text-gray-400">Output</span></div>
+          </div>
+        </div>
+      `;
+      
+      document.getElementById('ytd-charts').innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          ${donutChart}
+          ${trendChart}
+          ${topBottomChart}
+          ${monthlyBarChart}
+        </div>
+      `;
+    }
+    
+    function renderYTDHeatmap() {
+      const months = appData.monthsMetadata || [];
+      const thresholds = appData.scheme?.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
+      const emps = [...appData.employees].sort((a,b) => a.achievementPct - b.achievementPct);
+      
+      const getColorClass = (pct, isActive) => {
+        if (!isActive) return 'bg-slate-800/40 text-gray-600';
+        if (pct >= 110) return 'cell-star text-white';
+        if (pct >= thresholds.targetAchieved) return 'cell-green text-white';
+        if (pct >= thresholds.atRisk) return 'cell-yellow text-white';
+        if (pct >= thresholds.terminationYTD) return 'cell-red text-white';
+        return 'cell-termination text-white';
+      };
+      
+      const rows = emps.map(e => {
+        const cells = months.map(m => {
+          const mData = e.months.find(em => em.month===m.month && em.year===m.year);
+          if (!mData || !mData.isActive) {
+            return `<td class="p-1"><div class="heatmap-cell w-10 h-10 rounded-md flex items-center justify-center text-[10px] bg-slate-800/40 text-gray-600" title="${m.shortLabel}: Not active">—</div></td>`;
+          }
+          const pct = mData.achievementPct;
+          const colorClass = getColorClass(pct, mData.isActive);
+          return `<td class="p-1"><div class="heatmap-cell w-10 h-10 rounded-md flex items-center justify-center text-[10px] font-bold ${colorClass}" title="${e.name} — ${m.shortLabel} ${m.year}&#10;Output: ${mData.output} / Target: ${mData.target}&#10;Achievement: ${pct.toFixed(1)}%${mData.isProRated?' (pro-rated)':''}">${pct.toFixed(0)}</div></td>`;
+        }).join('');
+        
+        const statusBadge = e.isTerminationRisk 
+          ? '<span class="px-1.5 py-0.5 bg-red-900/60 border border-red-600 rounded text-[10px] text-red-200 font-bold">⚫ TERMINATE</span>'
+          : e.achievementPct >= thresholds.targetAchieved
+          ? '<span class="px-1.5 py-0.5 bg-emerald-900/60 rounded text-[10px] text-emerald-300">✓ Achieved</span>'
+          : e.achievementPct >= thresholds.atRisk
+          ? '<span class="px-1.5 py-0.5 bg-amber-900/60 rounded text-[10px] text-amber-300">⚠️ At Risk</span>'
+          : '<span class="px-1.5 py-0.5 bg-red-900/60 rounded text-[10px] text-red-300">🔴 Critical</span>';
+        
+        return `
+          <tr class="${e.isTerminationRisk?'termination-row':'hover:bg-slate-800/30'} cursor-pointer" onclick="showEmployeePopup('${e.id}')">
+            <td class="px-3 py-1 sticky left-0 bg-slate-900 z-10">
+              <div class="flex items-center gap-2">
+                <div class="min-w-0"><div class="font-medium text-sm truncate">${e.name}</div><div class="text-[10px] text-gray-500">${e.id}${e.isNewJoiner?' 🆕':''}${e.isResigned?' 🚪':''}</div></div>
+              </div>
+            </td>
+            ${cells}
+            <td class="px-3 py-1 text-center"><div class="font-bold text-lg ${e.achievementPct>=thresholds.targetAchieved?'text-emerald-400':e.achievementPct>=thresholds.atRisk?'text-amber-400':e.achievementPct>=thresholds.terminationYTD?'text-red-400':'text-red-600'}">${e.achievementPct.toFixed(0)}%</div></td>
+            <td class="px-3 py-1 text-center">${statusBadge}</td>
+          </tr>
+        `;
+      }).join('');
+      
+      document.getElementById('ytd-heatmap').innerHTML = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div class="px-5 py-3 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <div class="font-semibold flex items-center gap-2"><span>🗓️</span><span>Employee × Month Performance Heatmap</span></div>
+              <div class="text-xs text-gray-400 mt-0.5">Sorted worst to best • Click any row to see detailed breakdown</div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 text-[10px]">
+              <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-star"></div><span class="text-gray-400">≥110%</span></div>
+              <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-green"></div><span class="text-gray-400">≥${thresholds.targetAchieved}%</span></div>
+              <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-yellow"></div><span class="text-gray-400">≥${thresholds.atRisk}%</span></div>
+              <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-red"></div><span class="text-gray-400">≥${thresholds.terminationYTD}%</span></div>
+              <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-termination"></div><span class="text-red-400 font-bold">&lt;${thresholds.terminationYTD}% Terminate</span></div>
+            </div>
+          </div>
+          <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table class="w-full text-sm">
+              <thead class="sticky top-0 bg-slate-900 z-20">
+                <tr>
+                  <th class="px-3 py-2 text-left font-semibold border-b border-slate-700 sticky left-0 bg-slate-900 z-30 min-w-[180px]">Employee</th>
+                  ${months.map(m => `<th class="px-2 py-2 text-center font-semibold border-b border-slate-700 text-xs">${m.shortLabel}<div class="text-[9px] text-gray-500 font-normal">${m.year}</div></th>`).join('')}
+                  <th class="px-3 py-2 text-center font-semibold border-b border-slate-700">YTD %</th>
+                  <th class="px-3 py-2 text-center font-semibold border-b border-slate-700">Status</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+    
+    function renderYTDFooterStats() {
+      const s = appData.teamStats;
+      const thresholds = s.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
+      document.getElementById('footer-stats').innerHTML = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="font-semibold mb-3">📊 Performance Distribution</div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-emerald-400">⭐ Star (≥110%)</span><span class="font-bold">${s.star||0}</span></div>
+            <div class="flex justify-between"><span class="text-emerald-400">✅ Achieved (≥${thresholds.targetAchieved}%)</span><span class="font-bold">${s.targetAchievedCount||0}</span></div>
+            <div class="flex justify-between"><span class="text-amber-400">⚠️ At Risk (${thresholds.atRisk}-${thresholds.targetAchieved-1}%)</span><span class="font-bold">${s.atRisk||0}</span></div>
+            <div class="flex justify-between"><span class="text-red-400">🔴 Critical (${thresholds.terminationYTD}-${thresholds.atRisk-1}%)</span><span class="font-bold">${s.critical||0}</span></div>
+            <div class="flex justify-between border-t border-red-900/50 pt-2 mt-2"><span class="text-red-500 font-bold">⚫ Termination (&lt;${thresholds.terminationYTD}%)</span><span class="font-bold text-red-500 text-lg">${s.termination||0}</span></div>
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="font-semibold mb-3">💰 Incentive Summary</div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-emerald-400">Earning Incentive</span><span class="font-bold">${s.earningIncentive||0}</span></div>
+            <div class="flex justify-between"><span class="text-emerald-400">💼 Working Incentive</span><span class="font-bold text-emerald-400">₹${s.totalWorkingIncentive?.toLocaleString()||0}</span></div>
+            <div class="flex justify-between"><span class="text-purple-400">🎁 Holiday Pay</span><span class="font-bold text-purple-400">₹${s.totalHolidayPay?.toLocaleString()||0}</span></div>
+            <div class="flex justify-between border-t border-slate-700 pt-2 mt-2"><span class="text-amber-400 font-semibold">💵 Total Earnings</span><span class="font-bold text-amber-400">₹${s.totalEarnings?.toLocaleString()||0}</span></div>
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="font-semibold mb-3">👥 Team Summary</div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">Total Employees</span><span class="font-bold">${s.total}</span></div>
+            <div class="flex justify-between"><span class="text-blue-400">🆕 New Joiners</span><span class="font-bold">${s.newJoinersCount||0}</span></div>
+            <div class="flex justify-between"><span class="text-orange-400">🚪 Resigned</span><span class="font-bold">${s.resignedCount||0}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Avg Achievement</span><span class="font-bold ${s.avgAchievement>=thresholds.targetAchieved?'text-emerald-400':'text-amber-400'}">${s.avgAchievement?.toFixed(1)||0}%</span></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ================================================================
     // SECTION 25: EMPLOYEE POPUP
     // ================================================================
     function showEmployeePopup(empId) {
       const emp = appData.employees.find(e => e.id === empId);
       if (!emp) return;
+      const thresholds = appData.scheme?.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
+      const isYTD = appData.isYTD;
 
-      document.getElementById('popup-employee-name').textContent = emp.name;
-      document.getElementById('popup-employee-id').textContent = `(${emp.id}) • Target: ${emp.dailyTarget} • Working Days: ${emp.workingDays}`;
+      document.getElementById('popup-employee-name').textContent = emp.name + (emp.isTerminationRisk?' ⚫':'');
+      const subtitle = isYTD 
+        ? `(${emp.id}) • Target: ${emp.dailyTarget}/day • Total Working Days: ${emp.workingDays} • Months: ${emp.months?.length||0}`
+        : `(${emp.id}) • Target: ${emp.dailyTarget} • Working Days: ${emp.workingDays}`;
+      document.getElementById('popup-employee-id').textContent = subtitle;
+
+      // Termination warning banner (YTD only)
+      const termBanner = (isYTD && emp.isTerminationRisk) ? `
+        <div class="col-span-full bg-gradient-to-r from-red-950 via-red-900/80 to-red-950 border-2 border-red-600 rounded-xl p-3 flex items-center gap-3 animate-pulse-glow mb-2">
+          <div class="text-3xl">⚠️</div>
+          <div class="flex-1">
+            <div class="font-bold text-red-200">BELOW TERMINATION THRESHOLD (${thresholds.terminationYTD}%)</div>
+            <div class="text-xs text-red-300/80">Achievement ${emp.achievementPct.toFixed(1)}% — Requires management review. Gap: ${emp.shortfall} units short of target.</div>
+          </div>
+        </div>
+      ` : '';
 
       document.getElementById('popup-summary').innerHTML = `
+        ${termBanner}
         <div class="text-center"><div class="text-xs text-gray-400">Total Output</div><div class="text-xl font-bold text-cyan-400">${emp.totalDone}</div></div>
         <div class="text-center"><div class="text-xs text-gray-400">Total Points</div><div class="text-xl font-bold text-purple-400">${emp.totalPoints}</div></div>
-        <div class="text-center"><div class="text-xs text-gray-400">Achievement</div><div class="text-xl font-bold ${emp.achievementPct>=100?'text-emerald-400':'text-amber-400'}">${emp.achievementPct.toFixed(1)}%</div></div>
-        <div class="text-center"><div class="text-xs text-gray-400">Shortfall</div><div class="text-xl font-bold ${emp.shortfall>0?'text-red-400':'text-emerald-400'}">${emp.shortfall>0?'-'+emp.shortfall:'0'}</div></div>
+        <div class="text-center"><div class="text-xs text-gray-400">Target Required</div><div class="text-xl font-bold text-gray-300">${emp.targetRequired}</div></div>
+        <div class="text-center"><div class="text-xs text-gray-400">Achievement</div><div class="text-xl font-bold ${emp.achievementPct>=thresholds.targetAchieved?'text-emerald-400':emp.achievementPct>=thresholds.atRisk?'text-amber-400':emp.achievementPct>=thresholds.terminationYTD?'text-red-400':'text-red-600'}">${emp.achievementPct.toFixed(1)}%</div></div>
       `;
 
-      const wb = emp.workingDayBreakdown || [];
-      if (wb.length > 0) {
-        document.getElementById('popup-working-breakdown').innerHTML = wb.map(d => `
-          <div class="flex items-center justify-between p-2 rounded ${d.amount>0?'bg-emerald-900/20':'bg-slate-800'}">
-            <div class="flex items-center gap-3"><span class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs font-bold">${d.day}</span><span class="text-xs text-gray-400">R${d.retail} P${d.prolinks} S${d.svg}</span></div>
-            <div class="flex items-center gap-4"><span class="text-purple-400 font-medium">${d.points}pts</span><span class="text-xs text-gray-500">× ₹${d.rate}</span><span class="font-bold ${d.amount>0?'text-emerald-400':'text-gray-500'}">₹${d.amount}</span></div>
+      if (isYTD) {
+        // ===== YTD: Replace Working Day Breakdown with Month-by-Month =====
+        const months = emp.months || [];
+        const activeMonths = months.filter(m => m.isActive);
+        
+        // Month-by-month bar chart
+        const maxMVal = Math.max(...months.flatMap(m => [m.output, m.target]), 1);
+        const chartW = 500, chartH = 140;
+        const barCount = months.length || 1;
+        const groupW = (chartW - 40) / barCount;
+        const barW = Math.min(groupW / 2.5, 24);
+        
+        const barChart = months.length > 0 ? `
+          <div class="bg-slate-800/50 rounded-xl p-3 mb-3">
+            <div class="text-xs text-gray-400 mb-2 font-semibold">📊 Monthly Target vs Output</div>
+            <svg viewBox="0 0 ${chartW} ${chartH}" class="w-full h-36">
+              ${[0.25, 0.5, 0.75, 1].map(r => `<line x1="30" y1="${15 + (1-r)*(chartH-40)}" x2="${chartW-10}" y2="${15 + (1-r)*(chartH-40)}" stroke="#334155" stroke-width="0.3" stroke-dasharray="2,2"/><text x="28" y="${18 + (1-r)*(chartH-40)}" text-anchor="end" fill="#64748b" font-size="7">${Math.round(maxMVal*r)}</text>`).join('')}
+              ${months.map((m,i) => {
+                const x = 30 + i*groupW + groupW/2;
+                const tH = m.target > 0 ? (m.target/maxMVal)*(chartH-40) : 0;
+                const oH = m.output > 0 ? (m.output/maxMVal)*(chartH-40) : 0;
+                const pct = m.target > 0 ? (m.output/m.target*100) : 0;
+                const color = !m.isActive ? '#475569' : pct>=thresholds.targetAchieved?'#10b981':pct>=thresholds.atRisk?'#f59e0b':pct>=thresholds.terminationYTD?'#dc2626':'#7f1d1d';
+                return `
+                  <rect x="${x-barW-1}" y="${chartH-25-tH}" width="${barW}" height="${tH}" fill="#475569" opacity="0.7" rx="1"><title>${m.shortLabel} Target: ${m.target}</title></rect>
+                  <rect x="${x+1}" y="${chartH-25-oH}" width="${barW}" height="${oH}" fill="${color}" rx="1"><title>${m.shortLabel} Output: ${m.output} (${pct.toFixed(1)}%)</title></rect>
+                  <text x="${x}" y="${chartH-10}" text-anchor="middle" fill="#9ca3af" font-size="9">${m.shortLabel}</text>
+                  <text x="${x}" y="${chartH-25-Math.max(tH,oH)-3}" text-anchor="middle" fill="#f3f4f6" font-size="8" font-weight="bold">${pct.toFixed(0)}%</text>
+                `;
+              }).join('')}
+            </svg>
+            <div class="flex justify-center gap-4 mt-1 text-[10px]">
+              <div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-500 rounded"></div><span class="text-gray-400">Target</span></div>
+              <div class="flex items-center gap-1"><div class="w-3 h-3 bg-emerald-500 rounded"></div><span class="text-gray-400">Output</span></div>
+            </div>
           </div>
-        `).join('');
-      } else {
-        document.getElementById('popup-working-breakdown').innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No working day data</p>';
-      }
-      document.getElementById('popup-working-total').innerHTML = `<span class="text-emerald-400">Working Days Incentive:</span><span class="text-emerald-400">₹${emp.workingIncentive}</span>`;
-
-      const hb = emp.holidayBreakdown || [];
-      if (hb.length > 0) {
-        document.getElementById('popup-holiday-breakdown').innerHTML = hb.map(d => `
+        ` : '';
+        
+        // Month-by-month detailed table
+        const monthRows = months.map(m => {
+          const pct = m.target > 0 ? (m.output/m.target*100) : 0;
+          const statusColor = !m.isActive ? 'text-gray-500' : pct>=thresholds.targetAchieved?'text-emerald-400':pct>=thresholds.atRisk?'text-amber-400':pct>=thresholds.terminationYTD?'text-red-400':'text-red-600';
+          const statusLabel = !m.isActive ? '— Not Active' : pct>=thresholds.targetAchieved?'✓ Achieved':pct>=thresholds.atRisk?'⚠️ At Risk':pct>=thresholds.terminationYTD?'🔴 Critical':'⚫ Below Term.';
+          const rowBg = !m.isActive ? 'bg-slate-800/30' : m.isProRated ? 'bg-blue-900/10' : (pct<thresholds.terminationYTD ? 'bg-red-900/20' : 'bg-slate-800');
+          return `
+            <div class="grid grid-cols-12 gap-2 p-2 rounded text-xs items-center ${rowBg}">
+              <div class="col-span-2 font-semibold text-gray-200">${m.shortLabel} ${m.year}${m.isProRated?'<div class="text-[9px] text-blue-400">pro-rated</div>':''}</div>
+              <div class="col-span-1 text-center text-gray-400">${m.workingDays}d</div>
+              <div class="col-span-2 text-center text-gray-300">${m.target}</div>
+              <div class="col-span-2 text-center text-cyan-400 font-bold">${m.output}</div>
+              <div class="col-span-1 text-center text-purple-400">${m.points}pt</div>
+              <div class="col-span-2 text-center font-bold ${statusColor}">${pct.toFixed(1)}%</div>
+              <div class="col-span-2 text-right text-[10px] ${statusColor}">${statusLabel}</div>
+            </div>
+          `;
+        }).join('');
+        
+        document.getElementById('popup-working-breakdown').innerHTML = barChart + `
+          <div class="grid grid-cols-12 gap-2 p-2 text-[10px] uppercase text-gray-500 border-b border-slate-700 sticky top-0 bg-slate-900">
+            <div class="col-span-2">Month</div>
+            <div class="col-span-1 text-center">WD</div>
+            <div class="col-span-2 text-center">Target</div>
+            <div class="col-span-2 text-center">Output</div>
+            <div class="col-span-1 text-center">Pts</div>
+            <div class="col-span-2 text-center">Achieved</div>
+            <div class="col-span-2 text-right">Status</div>
+          </div>
+          ${monthRows}
+        `;
+        document.getElementById('popup-working-total').innerHTML = `<span class="text-emerald-400">YTD Working Incentive:</span><span class="text-emerald-400">₹${emp.workingIncentive.toLocaleString()}</span>`;
+        
+        // Holiday section: show month-wise HP
+        const monthHolidayRows = months.filter(m => m.holidayPay > 0).map(m => `
           <div class="flex items-center justify-between p-2 rounded bg-purple-900/20">
-            <div class="flex items-center gap-3"><span class="w-8 h-8 rounded bg-purple-700/50 flex items-center justify-center text-xs font-bold">${d.day}</span><span class="text-xs text-gray-400">${d.isSunday?'Sunday':'Holiday'}: R${d.retail} P${d.prolinks} S${d.svg}</span></div>
-            <div class="flex items-center gap-2"><span class="text-xs text-gray-400">${d.total} files</span><span class="font-bold text-purple-400">₹${d.pay}</span></div>
+            <div class="flex items-center gap-3"><span class="w-10 h-8 rounded bg-purple-700/50 flex items-center justify-center text-xs font-bold">${m.shortLabel}</span><span class="text-xs text-gray-400">Holiday/Sunday Pay for ${m.shortLabel}</span></div>
+            <div class="font-bold text-purple-400">₹${m.holidayPay}</div>
           </div>
         `).join('');
+        document.getElementById('popup-holiday-breakdown').innerHTML = monthHolidayRows || '<p class="text-gray-500 text-sm text-center py-4">No holiday work across months</p>';
+        document.getElementById('popup-holiday-total').innerHTML = `<span class="text-purple-400">YTD Holiday Pay:</span><span class="text-purple-400">₹${emp.holidayPay.toLocaleString()}</span>`;
+        document.getElementById('popup-grand-total').textContent = '₹' + emp.totalEarnings.toLocaleString();
       } else {
-        document.getElementById('popup-holiday-breakdown').innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No holiday work</p>';
+        // ===== MTD: Original behavior (day-by-day) =====
+        const wb = emp.workingDayBreakdown || [];
+        if (wb.length > 0) {
+          document.getElementById('popup-working-breakdown').innerHTML = wb.map(d => `
+            <div class="flex items-center justify-between p-2 rounded ${d.amount>0?'bg-emerald-900/20':'bg-slate-800'}">
+              <div class="flex items-center gap-3"><span class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs font-bold">${d.day}</span><span class="text-xs text-gray-400">R${d.retail} P${d.prolinks} S${d.svg}</span></div>
+              <div class="flex items-center gap-4"><span class="text-purple-400 font-medium">${d.points}pts</span><span class="text-xs text-gray-500">× ₹${d.rate}</span><span class="font-bold ${d.amount>0?'text-emerald-400':'text-gray-500'}">₹${d.amount}</span></div>
+            </div>
+          `).join('');
+        } else {
+          document.getElementById('popup-working-breakdown').innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No working day data</p>';
+        }
+        document.getElementById('popup-working-total').innerHTML = `<span class="text-emerald-400">Working Days Incentive:</span><span class="text-emerald-400">₹${emp.workingIncentive}</span>`;
+
+        const hb = emp.holidayBreakdown || [];
+        if (hb.length > 0) {
+          document.getElementById('popup-holiday-breakdown').innerHTML = hb.map(d => `
+            <div class="flex items-center justify-between p-2 rounded bg-purple-900/20">
+              <div class="flex items-center gap-3"><span class="w-8 h-8 rounded bg-purple-700/50 flex items-center justify-center text-xs font-bold">${d.day}</span><span class="text-xs text-gray-400">${d.isSunday?'Sunday':'Holiday'}: R${d.retail} P${d.prolinks} S${d.svg}</span></div>
+              <div class="flex items-center gap-2"><span class="text-xs text-gray-400">${d.total} files</span><span class="font-bold text-purple-400">₹${d.pay}</span></div>
+            </div>
+          `).join('');
+        } else {
+          document.getElementById('popup-holiday-breakdown').innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No holiday work</p>';
+        }
+        document.getElementById('popup-holiday-total').innerHTML = `<span class="text-purple-400">Holiday/Sunday Pay:</span><span class="text-purple-400">₹${emp.holidayPay}</span>`;
+        document.getElementById('popup-grand-total').textContent = '₹' + emp.totalEarnings;
       }
-      document.getElementById('popup-holiday-total').innerHTML = `<span class="text-purple-400">Holiday/Sunday Pay:</span><span class="text-purple-400">₹${emp.holidayPay}</span>`;
-      document.getElementById('popup-grand-total').textContent = '₹' + emp.totalEarnings;
+
+      // Update popup section titles based on mode
+      const popupSections = document.querySelectorAll('#employee-popup h3');
+      if (popupSections[0]) popupSections[0].innerHTML = isYTD ? '📈 Month-by-Month Breakdown' : '💼 Working Day Breakdown';
+      if (popupSections[1]) popupSections[1].innerHTML = isYTD ? '🎁 Monthly Holiday Pay' : '🎁 Holiday Pay Breakdown';
 
       openModal('employee-popup');
     }
@@ -1700,21 +2464,29 @@
       document.getElementById('holiday-svg-rate').value = s.holidayRates?.svg || 75;
       document.getElementById('threshold-target').value = s.thresholds?.targetAchieved || 95;
       document.getElementById('threshold-atrisk').value = s.thresholds?.atRisk || 80;
+      document.getElementById('threshold-termination').value = s.thresholds?.terminationYTD || 70;
     }
 
     function saveSchemeFromForm() {
       // Validate thresholds
       const targetThreshold = parseInt(document.getElementById('threshold-target').value) || 95;
       const atRiskThreshold = parseInt(document.getElementById('threshold-atrisk').value) || 80;
+      const terminationThreshold = parseInt(document.getElementById('threshold-termination').value) || 70;
       
       if (targetThreshold <= atRiskThreshold) {
         return alert('Target Achieved % must be greater than At Risk %');
+      }
+      if (atRiskThreshold <= terminationThreshold) {
+        return alert('At Risk % must be greater than YTD Termination %');
       }
       if (targetThreshold > 100 || targetThreshold < 50) {
         return alert('Target Achieved % must be between 50 and 100');
       }
       if (atRiskThreshold > 100 || atRiskThreshold < 50) {
         return alert('At Risk % must be between 50 and 100');
+      }
+      if (terminationThreshold > 90 || terminationThreshold < 40) {
+        return alert('YTD Termination % must be between 40 and 90');
       }
       
       const sid = currentSchemeId || 'scheme_' + Date.now();
@@ -1727,7 +2499,7 @@
         target8: { minPoints: parseInt(document.getElementById('t8-min-points').value)||7, targetPoints: parseInt(document.getElementById('t8-target-points').value)||8, exceedPoints: parseInt(document.getElementById('t8-exceed-points').value)||9, minRate: parseInt(document.getElementById('t8-min-rate').value)||7, targetRate: parseInt(document.getElementById('t8-target-rate').value)||8, exceedRate: parseInt(document.getElementById('t8-exceed-rate').value)||9 },
         target10: { minPoints: parseInt(document.getElementById('t10-min-points').value)||9, targetPoints: parseInt(document.getElementById('t10-target-points').value)||10, exceedPoints: parseInt(document.getElementById('t10-exceed-points').value)||11, minRate: parseInt(document.getElementById('t10-min-rate').value)||7, targetRate: parseInt(document.getElementById('t10-target-rate').value)||8, exceedRate: parseInt(document.getElementById('t10-exceed-rate').value)||9 },
         holidayRates: { leadgen: parseInt(document.getElementById('holiday-leadgen-rate').value)||75, prolink: parseInt(document.getElementById('holiday-prolink-rate').value)||100, svg: parseInt(document.getElementById('holiday-svg-rate').value)||75 },
-        thresholds: { targetAchieved: targetThreshold, atRisk: atRiskThreshold }
+        thresholds: { targetAchieved: targetThreshold, atRisk: atRiskThreshold, terminationYTD: terminationThreshold }
       };
       const idx = incentiveSchemes.findIndex(x => x.id === sid);
       if (idx >= 0) incentiveSchemes[idx] = scheme;
@@ -1804,37 +2576,130 @@
     function downloadPDF(withIncentive) {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'mm', 'a4');
-      const title = appData.isYTD ? 'YTD Performance Report' : 'MTD Performance Report';
-      const thresholds = appData.scheme?.thresholds || { targetAchieved: 95, atRisk: 80 };
-      doc.setFontSize(18);
+      const isYTD = appData.isYTD;
+      const title = isYTD ? 'YTD Performance Report' : 'MTD Performance Report';
+      const thresholds = appData.scheme?.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
+      
+      // === TITLE PAGE ===
+      doc.setFontSize(20);
+      doc.setTextColor(30, 41, 59);
       doc.text(title, 14, 15);
       doc.setFontSize(10);
-      doc.text('Date: ' + appData.dateRangeText + ' | Working Days: ' + appData.workingDays + ' | Target Threshold: ' + thresholds.targetAchieved + '%', 14, 22);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Date: ' + appData.dateRangeText + ' | Working Days: ' + appData.workingDays + ' | Target: ' + thresholds.targetAchieved + '%' + (isYTD?' | Termination Threshold: ' + thresholds.terminationYTD + '%':''), 14, 22);
 
+      const s = appData.teamStats;
+      let cursorY = 28;
+
+      // === TERMINATION SECTION (YTD ONLY) ===
+      if (isYTD && (s.termination||0) > 0) {
+        const termEmps = appData.employees.filter(e => e.isTerminationRisk).sort((a,b) => a.achievementPct - b.achievementPct);
+        
+        // Red banner
+        doc.setFillColor(127, 29, 29);
+        doc.rect(14, cursorY, 269, 12, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(13);
+        doc.text('!! TERMINATION RISK EMPLOYEES — BELOW ' + thresholds.terminationYTD + '% YTD THRESHOLD !!', 18, cursorY + 8);
+        doc.setFontSize(10);
+        doc.text(termEmps.length + ' employee(s) — Requires management review', 210, cursorY + 8);
+        cursorY += 14;
+        
+        doc.autoTable({
+          head: [['#', 'Name', 'ID', 'Daily Target', 'Output', 'Target Req', 'Shortfall', 'Achievement %', 'Months', 'Total Earnings']],
+          body: termEmps.map((e, i) => [i+1, e.name, e.id, e.dailyTarget, e.totalDone, e.targetRequired, '-' + e.shortfall, e.achievementPct.toFixed(1) + '%', (e.months||[]).length, '₹' + e.totalEarnings]),
+          startY: cursorY,
+          styles: { fontSize: 8, textColor: [127, 29, 29] },
+          headStyles: { fillColor: [127, 29, 29], textColor: [255, 255, 255] },
+          alternateRowStyles: { fillColor: [254, 226, 226] }
+        });
+        cursorY = doc.lastAutoTable.finalY + 8;
+        
+        // Monthly breakdown for termination employees
+        doc.setFontSize(11);
+        doc.setTextColor(127, 29, 29);
+        doc.text('Monthly Breakdown — Termination Risk Employees', 14, cursorY);
+        cursorY += 4;
+        
+        const monthsMeta = appData.monthsMetadata || [];
+        const monthHead = ['Name', 'ID', ...monthsMeta.flatMap(m => [m.shortLabel+' Out', m.shortLabel+' Tgt', m.shortLabel+' %']), 'YTD %'];
+        const monthBody = termEmps.map(e => {
+          const row = [e.name, e.id];
+          monthsMeta.forEach(m => {
+            const md = e.months.find(em => em.month===m.month && em.year===m.year);
+            if (md && md.isActive) { row.push(md.output, md.target, (md.target>0?(md.output/md.target*100).toFixed(0):'0') + '%'); }
+            else { row.push('-', '-', '-'); }
+          });
+          row.push(e.achievementPct.toFixed(1) + '%');
+          return row;
+        });
+        doc.autoTable({ head: [monthHead], body: monthBody, startY: cursorY + 2, styles: { fontSize: 7 }, headStyles: { fillColor: [127, 29, 29], textColor: [255, 255, 255] } });
+        cursorY = doc.lastAutoTable.finalY + 8;
+        
+        // Add a new page for the main table
+        doc.addPage();
+        cursorY = 15;
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.text('Full Employee Report — ' + title, 14, cursorY);
+        cursorY += 7;
+      }
+
+      // === MAIN TABLE ===
       const emps = getFilteredSortedEmployees();
       let headers, body;
 
-      if (withIncentive) {
-        headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', thresholds.targetAchieved + '%', '🎯', 'Gap', '%', 'W.Inc', 'H.Pay', 'Total']];
-        body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'✓':'✗', e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%', '₹' + e.workingIncentive, '₹' + e.holidayPay, '₹' + e.totalEarnings]);
+      if (isYTD) {
+        if (withIncentive) {
+          headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', thresholds.targetAchieved + '%', '🎯', 'Gap', '%', 'Status', 'W.Inc', 'H.Pay', 'Total']];
+          body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'✓':'✗', e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%', e.isTerminationRisk?'TERMINATE':e.achievementPct>=thresholds.targetAchieved?'Achieved':e.achievementPct>=thresholds.atRisk?'At Risk':'Critical', '₹' + e.workingIncentive, '₹' + e.holidayPay, '₹' + e.totalEarnings]);
+        } else {
+          headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', thresholds.targetAchieved + '%', '🎯', 'Gap', '%', 'Status']];
+          body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'✓':'✗', e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%', e.isTerminationRisk?'TERMINATE':e.achievementPct>=thresholds.targetAchieved?'Achieved':e.achievementPct>=thresholds.atRisk?'At Risk':'Critical']);
+        }
       } else {
-        headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', thresholds.targetAchieved + '%', '🎯', 'Gap', '%']];
-        body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'✓':'✗', e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%']);
+        if (withIncentive) {
+          headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', thresholds.targetAchieved + '%', '🎯', 'Gap', '%', 'W.Inc', 'H.Pay', 'Total']];
+          body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'✓':'✗', e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%', '₹' + e.workingIncentive, '₹' + e.holidayPay, '₹' + e.totalEarnings]);
+        } else {
+          headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', thresholds.targetAchieved + '%', '🎯', 'Gap', '%']];
+          body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'✓':'✗', e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%']);
+        }
       }
 
-      doc.autoTable({ head: headers, body: body, startY: 28, styles: { fontSize: 8 }, headStyles: { fillColor: [30, 41, 59] } });
+      doc.autoTable({
+        head: headers, body: body, startY: cursorY,
+        styles: { fontSize: 8 }, headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255] },
+        didParseCell: function(data) {
+          if (isYTD && data.section === 'body') {
+            const rowEmp = emps[data.row.index];
+            if (rowEmp && rowEmp.isTerminationRisk) {
+              data.cell.styles.fillColor = [254, 226, 226];
+              data.cell.styles.textColor = [127, 29, 29];
+            }
+          }
+        }
+      });
 
-      const s = appData.teamStats;
       const finalY = doc.lastAutoTable.finalY + 10;
       doc.setFontSize(10);
+      doc.setTextColor(30, 41, 59);
       doc.text('Team Summary:', 14, finalY);
       doc.setFontSize(9);
-      doc.text('Total Employees: ' + s.total + ' | Target Achieved: ' + (s.targetAchievedCount||0) + '/' + s.total + ' | Total Output: ' + s.totalOutput + ' | Total Points: ' + s.totalPoints + ' | Avg: ' + s.avgAchievement.toFixed(1) + '%', 14, finalY + 6);
-      if (withIncentive) {
+      doc.setTextColor(71, 85, 105);
+      doc.text('Total Employees: ' + s.total + ' | Target Achieved: ' + (s.targetAchievedCount||0) + '/' + s.total + ' | Not Achieved: ' + (s.notAchievedCount||0) + ' | Total Output: ' + s.totalOutput + ' | Total Points: ' + s.totalPoints + ' | Avg: ' + s.avgAchievement.toFixed(1) + '%', 14, finalY + 6);
+      if (isYTD) {
+        doc.setTextColor(127, 29, 29);
+        doc.text('Star: ' + (s.star||0) + ' | At Risk: ' + (s.atRisk||0) + ' | Critical: ' + (s.critical||0) + ' | TERMINATION RISK: ' + (s.termination||0), 14, finalY + 12);
+        doc.setTextColor(71, 85, 105);
+        if (withIncentive) {
+          doc.text('Working Incentive: ₹' + s.totalWorkingIncentive + ' | Holiday Pay: ₹' + s.totalHolidayPay + ' | Total Earnings: ₹' + s.totalEarnings, 14, finalY + 18);
+        }
+      } else if (withIncentive) {
         doc.text('Working Incentive: ₹' + s.totalWorkingIncentive + ' | Holiday Pay: ₹' + s.totalHolidayPay + ' | Total Earnings: ₹' + s.totalEarnings, 14, finalY + 12);
       }
 
-      doc.save('performance_report_' + (withIncentive ? 'with_incentive' : 'without_incentive') + '.pdf');
+      doc.save((isYTD?'YTD_':'MTD_') + 'performance_report_' + (withIncentive ? 'with_incentive' : 'without_incentive') + '.pdf');
     }
 
     // ================================================================
@@ -1842,28 +2707,97 @@
     // ================================================================
     function downloadExcel() {
       const emps = getFilteredSortedEmployees();
-      const thresholds = appData.scheme?.thresholds || { targetAchieved: 95, atRisk: 80 };
-      const data = [['Name', 'ID', 'Target', 'Output', 'Points', 'Target Req', thresholds.targetAchieved + '% Target', 'Target Achieved', 'Shortfall', 'Achievement %', 'Working Incentive', 'Holiday Pay', 'Total Earnings']];
-      emps.forEach(e => {
-        data.push([e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'Yes':'No', e.shortfall, e.achievementPct.toFixed(2), e.workingIncentive, e.holidayPay, e.totalEarnings]);
-      });
-
+      const isYTD = appData.isYTD;
+      const thresholds = appData.scheme?.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
       const s = appData.teamStats;
-      data.push([]);
-      data.push(['TEAM SUMMARY']);
-      data.push(['Total Employees', s.total]);
-      data.push(['Target Achieved (' + thresholds.targetAchieved + '%)', (s.targetAchievedCount||0) + ' / ' + s.total]);
-      data.push(['Total Output', s.totalOutput]);
-      data.push(['Total Points', s.totalPoints]);
-      data.push(['Avg Achievement', s.avgAchievement.toFixed(2) + '%']);
-      data.push(['Working Incentive', '₹' + s.totalWorkingIncentive]);
-      data.push(['Holiday Pay', '₹' + s.totalHolidayPay]);
-      data.push(['Total Earnings', '₹' + s.totalEarnings]);
-
-      const ws = XLSX.utils.aoa_to_sheet(data);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Performance Report');
-      XLSX.writeFile(wb, 'performance_report_' + appData.dateRangeText.replace(/\s/g, '_') + '.xlsx');
+
+      // === SHEET 1: Main Report ===
+      const mainHead = isYTD
+        ? ['Name', 'ID', 'Target', 'Months Active', 'Output', 'Points', 'Target Req', thresholds.targetAchieved + '% Target', 'Target Achieved', 'Shortfall', 'Achievement %', 'Status', 'YTD Trend', 'Working Incentive', 'Holiday Pay', 'Total Earnings']
+        : ['Name', 'ID', 'Target', 'Output', 'Points', 'Target Req', thresholds.targetAchieved + '% Target', 'Target Achieved', 'Shortfall', 'Achievement %', 'Working Incentive', 'Holiday Pay', 'Total Earnings'];
+      const mainData = [mainHead];
+      emps.forEach(e => {
+        if (isYTD) {
+          const status = e.isTerminationRisk ? 'TERMINATION RISK' : e.achievementPct>=thresholds.targetAchieved ? 'Achieved' : e.achievementPct>=thresholds.atRisk ? 'At Risk' : 'Critical';
+          mainData.push([e.name, e.id, e.dailyTarget, e.activeMonthsCount||e.months?.length||0, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'Yes':'No', e.shortfall, parseFloat(e.achievementPct.toFixed(2)), status, e.trend||'stable', e.workingIncentive, e.holidayPay, e.totalEarnings]);
+        } else {
+          mainData.push([e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'Yes':'No', e.shortfall, parseFloat(e.achievementPct.toFixed(2)), e.workingIncentive, e.holidayPay, e.totalEarnings]);
+        }
+      });
+      mainData.push([]);
+      mainData.push(['TEAM SUMMARY']);
+      mainData.push(['Total Employees', s.total]);
+      mainData.push(['Target Achieved (' + thresholds.targetAchieved + '%)', (s.targetAchievedCount||0) + ' / ' + s.total]);
+      mainData.push(['Target NOT Achieved', (s.notAchievedCount||0)]);
+      if (isYTD) {
+        mainData.push(['Star Performers (≥110%)', s.star||0]);
+        mainData.push(['At Risk', s.atRisk||0]);
+        mainData.push(['Critical', s.critical||0]);
+        mainData.push(['⚫ TERMINATION RISK (<' + thresholds.terminationYTD + '%)', s.termination||0]);
+      }
+      mainData.push(['Total Output', s.totalOutput]);
+      mainData.push(['Total Points', s.totalPoints]);
+      mainData.push(['Avg Achievement', s.avgAchievement.toFixed(2) + '%']);
+      mainData.push(['Working Incentive', '₹' + s.totalWorkingIncentive]);
+      mainData.push(['Holiday Pay', '₹' + s.totalHolidayPay]);
+      mainData.push(['Total Earnings', '₹' + s.totalEarnings]);
+
+      const wsMain = XLSX.utils.aoa_to_sheet(mainData);
+      wsMain['!cols'] = (isYTD ? [{wch:22},{wch:10},{wch:8},{wch:12},{wch:10},{wch:10},{wch:12},{wch:14},{wch:14},{wch:10},{wch:14},{wch:18},{wch:10},{wch:16},{wch:14},{wch:14}] : [{wch:22},{wch:10},{wch:8},{wch:10},{wch:10},{wch:12},{wch:14},{wch:14},{wch:10},{wch:14},{wch:16},{wch:14},{wch:14}]);
+      XLSX.utils.book_append_sheet(wb, wsMain, isYTD ? 'YTD Main Report' : 'MTD Main Report');
+
+      // === SHEET 2: Termination Risk (YTD ONLY) ===
+      if (isYTD && (s.termination||0) > 0) {
+        const termEmps = appData.employees.filter(e => e.isTerminationRisk).sort((a,b) => a.achievementPct - b.achievementPct);
+        const termData = [
+          ['⚠️ TERMINATION RISK REPORT — Below ' + thresholds.terminationYTD + '% YTD Threshold'],
+          ['Report Date:', appData.dateRangeText, '', 'Total Flagged:', termEmps.length, '', 'Threshold:', thresholds.terminationYTD + '%'],
+          [],
+          ['#', 'Name', 'ID', 'Daily Target', 'Months Active', 'Output', 'Target Required', 'Shortfall', 'Achievement %', 'New Joiner', 'Total Earnings']
+        ];
+        termEmps.forEach((e, i) => {
+          termData.push([i+1, e.name, e.id, e.dailyTarget, e.activeMonthsCount||0, e.totalDone, e.targetRequired, -e.shortfall, parseFloat(e.achievementPct.toFixed(2)), e.isNewJoiner?'Yes':'No', e.totalEarnings]);
+        });
+        const wsTerm = XLSX.utils.aoa_to_sheet(termData);
+        wsTerm['!cols'] = [{wch:4},{wch:22},{wch:10},{wch:12},{wch:14},{wch:10},{wch:14},{wch:12},{wch:14},{wch:12},{wch:14}];
+        XLSX.utils.book_append_sheet(wb, wsTerm, 'TERMINATION RISK');
+      }
+
+      // === SHEET 3: Monthly Breakdown (YTD ONLY) ===
+      if (isYTD) {
+        const monthsMeta = appData.monthsMetadata || [];
+        const mbHead = ['Name', 'ID', 'Daily Target'];
+        monthsMeta.forEach(m => {
+          mbHead.push(m.shortLabel+' '+m.year+' Output', m.shortLabel+' '+m.year+' Target', m.shortLabel+' '+m.year+' %');
+        });
+        mbHead.push('YTD Output', 'YTD Target', 'YTD %', 'Status');
+        
+        const mbData = [mbHead];
+        const sortedEmps = [...appData.employees].sort((a,b) => a.achievementPct - b.achievementPct);
+        sortedEmps.forEach(e => {
+          const row = [e.name, e.id, e.dailyTarget];
+          monthsMeta.forEach(m => {
+            const md = e.months.find(em => em.month===m.month && em.year===m.year);
+            if (md && md.isActive) {
+              row.push(md.output, md.target, parseFloat((md.target>0?(md.output/md.target*100):0).toFixed(2)));
+            } else {
+              row.push('-', '-', '-');
+            }
+          });
+          const status = e.isTerminationRisk ? '⚫ TERMINATION' : e.achievementPct>=thresholds.targetAchieved ? 'Achieved' : e.achievementPct>=thresholds.atRisk ? 'At Risk' : 'Critical';
+          row.push(e.totalDone, e.targetRequired, parseFloat(e.achievementPct.toFixed(2)), status);
+          mbData.push(row);
+        });
+        const wsMonthly = XLSX.utils.aoa_to_sheet(mbData);
+        const cols = [{wch:22},{wch:10},{wch:10}];
+        monthsMeta.forEach(() => { cols.push({wch:12},{wch:12},{wch:8}); });
+        cols.push({wch:12},{wch:12},{wch:10},{wch:16});
+        wsMonthly['!cols'] = cols;
+        XLSX.utils.book_append_sheet(wb, wsMonthly, 'Monthly Breakdown');
+      }
+
+      XLSX.writeFile(wb, (isYTD?'YTD_':'MTD_') + 'performance_report_' + appData.dateRangeText.replace(/[\s→]/g, '_').replace(/:/g, '') + '.xlsx');
     }
 
     // ================================================================
