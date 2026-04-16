@@ -244,6 +244,7 @@
               <option value="hasdebt">🚩 Has Outstanding Debt (YTD)</option>
               <option value="neartarget">👌 Near Target (86-94%)</option>
               <option value="managers">👔 Managers</option>
+              <option value="grace">🎓 Grace Period (Trainees)</option>
               <option value="star">⭐ Stars</option>
               <option value="incentive">💰 Earning</option>
               <option value="newjoiners">🆕 Joiners</option>
@@ -2220,13 +2221,21 @@
               totalRetail: 0, totalProlinks: 0, totalSvg: 0,
               workingIncentive: 0, holidayPay: 0, months: [],
               activeMonthsCount: 0,
-              // Non-manager accumulators (for achievement calc)
-              nonMgrOutput: 0, nonMgrTarget: 0, nonMgrMonthsCount: 0
+              // Non-manager accumulators (for legacy/shortfall calc)
+              nonMgrOutput: 0, nonMgrTarget: 0, nonMgrMonthsCount: 0,
+              // Reviewable accumulators (excludes BOTH manager months AND grace months)
+              // These drive achievement %, termination, and all performance tiers.
+              reviewableOutput: 0, reviewableTarget: 0, reviewableMonthsCount: 0,
+              graceMonthsCount: 0
             });
           }
 
+          // Grace month detection (scheme-aware, per-month)
+          const _schemeForMonth = getSchemeForMonth(currentYear, currentMonth);
+          const isGraceMonth = !!getJoinerInfo(empId) && isInNewJoinerGrace(empId, currentYear, currentMonth, _schemeForMonth);
+
           const emp = empMap.get(empId);
-          // Always count output & earnings (managers still do work)
+          // Always count output & earnings (managers AND trainees still do work — they get paid)
           emp.totalDone += monthOutput;
           emp.totalPoints += monthPoints;
           emp.workingDays += effectiveWorkingDays;
@@ -2236,15 +2245,24 @@
           emp.workingIncentive += monthWI;
           emp.holidayPay += monthHP;
           if (empActiveThisMonth && effectiveWorkingDays > 0) emp.activeMonthsCount++;
-          
-          // Target & achievement: ONLY accumulate from non-manager months
+
+          // Target & achievement: ONLY accumulate from non-manager months (legacy — kept for shortfall calc)
           if (!isManagerMonth) {
             emp.targetRequired += monthTarget;
             emp.nonMgrOutput += monthOutput;
             emp.nonMgrTarget += monthTarget;
             if (empActiveThisMonth && effectiveWorkingDays > 0) emp.nonMgrMonthsCount++;
           }
-          
+
+          // Reviewable accumulators: exclude BOTH manager months AND grace months
+          // This is what drives achievement % and all performance tier decisions.
+          if (!isManagerMonth && !isGraceMonth) {
+            emp.reviewableOutput += monthOutput;
+            emp.reviewableTarget += monthTarget;
+            if (empActiveThisMonth && effectiveWorkingDays > 0) emp.reviewableMonthsCount++;
+          }
+          if (isGraceMonth && empActiveThisMonth) emp.graceMonthsCount++;
+
           emp.months.push({
             month: currentMonth, year: currentYear,
             label: `${getMonthName(currentMonth)} ${currentYear}`,
@@ -2256,7 +2274,8 @@
             achievementPct: monthPct,
             isActive: empActiveThisMonth,
             isProRated: empActiveThisMonth && (effFromDay > 1 || effToDay < currentDay),
-            isManagerMonth: isManagerMonth
+            isManagerMonth: isManagerMonth,
+            isGraceMonth: isGraceMonth
           });
         }
       });
@@ -2310,23 +2329,38 @@
         const mgrInfo = getManagerInfo(emp.id);
         const isManager = !!mgrInfo;
         
-        // Achievement calculated from non-manager months only
-        const targetThresholdValue = Math.floor(emp.targetRequired * targetThreshold / 100);
-        const isTargetAchieved = emp.targetRequired > 0 && emp.totalDone >= targetThresholdValue;
-        const achievementPct = emp.targetRequired > 0 ? (emp.nonMgrOutput / emp.nonMgrTarget * 100) : 0;
+        // ================================================================
+        // ACHIEVEMENT % — calculated from REVIEWABLE months only
+        // Reviewable = excludes manager months AND grace months.
+        // If all months are non-reviewable → achievement % is undefined.
+        // ================================================================
+        const hasReviewable = emp.reviewableMonthsCount > 0 && emp.reviewableTarget > 0;
+        const achievementPct = hasReviewable ? (emp.reviewableOutput / emp.reviewableTarget * 100) : 0;
+
+        // Target threshold computation — uses reviewable target
+        const targetThresholdValue = Math.floor(emp.reviewableTarget * targetThreshold / 100);
+        const isTargetAchieved = hasReviewable && emp.reviewableOutput >= targetThresholdValue;
+
         const isResigned = !!getResignedInfo(emp.id);
         const hasJoinerRecord = !!getJoinerInfo(emp.id);
         const isNewJoiner = isRecentJoiner(emp.id);  // for 🆕 badge display only
-        // GRACE EXEMPTION: If the employee was in grace period for ANY month
-        // in this YTD view, they're still in/just past training → don't flag
-        // for termination. (Matches the "don't judge trainees" principle.)
-        const wasInGrace = hasJoinerRecord && wasInGraceForAnyMonth(emp.id, emp.months, ytdScheme);
-        // TERMINATION RISK: Below threshold AND not resigned AND not a manager
-        // AND has a target review period AND not protected by grace period.
-        const isTerminationRisk = !isManager && achievementPct < termThreshold
-                                && !isResigned && emp.targetRequired > 0
-                                && !wasInGrace;
-        const ytdTier = getPenaltyTier(achievementPct, thresholds);
+
+        // ALL-GRACE employee: every month in view is either grace or manager → no review data
+        const isAllGrace = hasJoinerRecord && !isManager && !isResigned && !hasReviewable && emp.graceMonthsCount > 0;
+
+        // ================================================================
+        // TERMINATION RISK — uses reviewable base only, with safety net:
+        //   Must have AT LEAST 2 reviewable months (prevents flagging on 1 bad month)
+        //   AND not manager, not resigned, not currently all-grace
+        // ================================================================
+        const minMonthsForTermination = 2;
+        const isTerminationRisk = !isManager && !isResigned && !isAllGrace
+                                && hasReviewable
+                                && emp.reviewableMonthsCount >= minMonthsForTermination
+                                && achievementPct < termThreshold;
+
+        // YTD tier — for all-grace employees, use special "grace" pseudo-tier
+        const ytdTier = isAllGrace ? 'grace' : (hasReviewable ? getPenaltyTier(achievementPct, thresholds) : 'exempt');
         
         // ================================================================
         // PENALTY CALCULATION WITH CARRY-FORWARD DEBT (bank-style)
@@ -2430,13 +2464,13 @@
         // Net total = earnings - penalty deducted
         const netTotal = emp.workingIncentive + emp.holidayPay - penaltyData.totalDeducted;
         
-        // Calc trend from non-manager active months
+        // Trend calculated from REVIEWABLE active months (exclude grace + manager)
         let ytdTrend = 'stable';
-        const nonMgrMonths = emp.months.filter(m => !m.isManagerMonth && m.isActive && m.target > 0);
-        if (nonMgrMonths.length >= 2) {
-          const half = Math.floor(nonMgrMonths.length / 2);
-          const firstHalf = nonMgrMonths.slice(0, half);
-          const secondHalf = nonMgrMonths.slice(-half);
+        const reviewableMonths = emp.months.filter(m => !m.isManagerMonth && !m.isGraceMonth && m.isActive && m.target > 0);
+        if (reviewableMonths.length >= 2) {
+          const half = Math.floor(reviewableMonths.length / 2);
+          const firstHalf = reviewableMonths.slice(0, half);
+          const secondHalf = reviewableMonths.slice(-half);
           if (firstHalf.length && secondHalf.length) {
             const avgFirst = firstHalf.reduce((s,m)=>s+m.achievementPct,0)/firstHalf.length;
             const avgSecond = secondHalf.reduce((s,m)=>s+m.achievementPct,0)/secondHalf.length;
@@ -2446,7 +2480,9 @@
         }
         return {
           ...emp,
-          shortfall: Math.max(0, emp.targetRequired - emp.nonMgrOutput),
+          // Override targetRequired to reflect REVIEWABLE target (drives % and shortfall display)
+          targetRequired: emp.reviewableTarget,
+          shortfall: hasReviewable ? Math.max(0, emp.reviewableTarget - emp.reviewableOutput) : 0,
           achievementPct,
           targetThresholdValue,
           isTargetAchieved,
@@ -2454,6 +2490,8 @@
           isManager,
           managerInfo: mgrInfo,
           ytdTier,
+          isAllGrace,
+          hasReviewable,
           isNearTarget: ytdTier === 'nearTarget',
           penalty: penaltyData,
           netTotal,
@@ -2466,7 +2504,8 @@
       });
 
       // Exclude managers from ranking (they're leadership, not competing)
-      const nonManagers = employees.filter(e => !e.isManager);
+      // Exclude managers AND all-grace trainees from ranking (neither are under performance review)
+      const nonManagers = employees.filter(e => !e.isManager && !e.isAllGrace);
       const sorted = [...nonManagers].sort((a, b) => b.achievementPct - a.achievementPct);
       const totalWD = employees.reduce((s, e) => s + e.workingDays, 0);
       const avgWD = employees.length > 0 ? Math.round(totalWD / employees.length) : 0;
@@ -2569,24 +2608,28 @@
       const termPct = thresholds.terminationYTD || 70;
       const nearT = thresholds.nearTarget || 86;
       const penaltyEnabled = !!(scheme?.penalty?.enabled);
-      
-      // Separate managers from reviewable employees
+
+      // Separate employees by review status:
+      //  managers = 👔 exempt
+      //  allGrace = 🎓 trainees (fully in grace, no reviewable data)
+      //  reviewable = anyone eligible for performance buckets
       const managerEmps = employees.filter(e => e.isManager);
-      const reviewable = employees.filter(e => !e.isManager);
+      const allGraceEmps = employees.filter(e => !e.isManager && e.isAllGrace);
+      const reviewable = employees.filter(e => !e.isManager && !e.isAllGrace);
       const reviewableCount = reviewable.length;
-      
-      // Penalty aggregates
+
       const totalPenaltyCalculated = employees.reduce((a, b) => a + (b.penalty?.totalCalculated || 0), 0);
       const totalPenaltyDeducted = employees.reduce((a, b) => a + (b.penalty?.totalDeducted || 0), 0);
       const totalOutstandingDebt = employees.reduce((a, b) => a + (b.penalty?.outstandingDebt || 0), 0);
       const employeesWithDebt = employees.filter(e => (e.penalty?.outstandingDebt || 0) > 0).length;
       const employeesPenalized = employees.filter(e => (e.penalty?.totalDeducted || 0) > 0).length;
       const totalNetPayable = employees.reduce((a, b) => a + (b.netTotal != null ? b.netTotal : b.totalEarnings), 0);
-      
+
       return {
         total,
         reviewableCount,
         managersCount: managerEmps.length,
+        allGraceCount: allGraceEmps.length,
         avgAchievement: reviewableCount > 0 ? reviewable.reduce((a, b) => a + b.achievementPct, 0) / reviewableCount : 0,
         star: reviewable.filter(e => e.achievementPct >= 110).length,
         onTrack: reviewable.filter(e => e.achievementPct >= thresholds.targetAchieved).length,
@@ -2750,16 +2793,17 @@
       const thresholds = appData.scheme?.thresholds || { targetAchieved: 95, atRisk: 80 };
       if (searchTerm) list = list.filter(e => e.fullName.toLowerCase().includes(searchTerm.toLowerCase()));
       switch(filterStatus) {
-        case 'targetachieved': list = list.filter(e => e.isTargetAchieved && !e.isManager); break;
-        case 'notachieved': list = list.filter(e => !e.isTargetAchieved && !e.isManager); break;
-        case 'ontrack': list = list.filter(e => e.achievementPct >= thresholds.targetAchieved && !e.isManager); break;
-        case 'atrisk': list = list.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < (thresholds.nearTarget||86) && !e.isManager); break;
-        case 'neartarget': list = list.filter(e => e.achievementPct >= (thresholds.nearTarget||86) && e.achievementPct < thresholds.targetAchieved && !e.isManager); break;
-        case 'critical': list = list.filter(e => e.achievementPct < thresholds.atRisk && !e.isManager && !e.isTerminationRisk); break;
+        case 'targetachieved': list = list.filter(e => e.isTargetAchieved && !e.isManager && !e.isAllGrace); break;
+        case 'notachieved': list = list.filter(e => !e.isTargetAchieved && !e.isManager && !e.isAllGrace); break;
+        case 'ontrack': list = list.filter(e => e.achievementPct >= thresholds.targetAchieved && !e.isManager && !e.isAllGrace); break;
+        case 'atrisk': list = list.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < (thresholds.nearTarget||86) && !e.isManager && !e.isAllGrace); break;
+        case 'neartarget': list = list.filter(e => e.achievementPct >= (thresholds.nearTarget||86) && e.achievementPct < thresholds.targetAchieved && !e.isManager && !e.isAllGrace); break;
+        case 'critical': list = list.filter(e => e.achievementPct < thresholds.atRisk && !e.isManager && !e.isTerminationRisk && !e.isAllGrace); break;
         case 'termination': list = list.filter(e => e.isTerminationRisk); break;
         case 'hasdebt': list = list.filter(e => (e.penalty?.outstandingDebt||0) > 0); break;
         case 'managers': list = list.filter(e => e.isManager); break;
-        case 'star': list = list.filter(e => e.achievementPct >= 110 && !e.isManager); break;
+        case 'grace': list = list.filter(e => e.isAllGrace || (appData.isYTD && (e.months||[]).some(m => m.isGraceMonth))); break;
+        case 'star': list = list.filter(e => e.achievementPct >= 110 && !e.isManager && !e.isAllGrace); break;
         case 'incentive': list = list.filter(e => e.workingIncentive > 0); break;
         case 'newjoiners': list = list.filter(e => e.isNewJoiner); break;
         case 'resigned': list = list.filter(e => e.isResigned); break;
@@ -2833,10 +2877,13 @@
           }).join(' ');
           
           const nearT = thresholds.nearTarget || 86;
+          const graceJoinDate = e.joinerDate ? new Date(e.joinerDate + 'T00:00:00').toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'2-digit'}) : '';
           const statusBadge = e.isManager
             ? '<span class="px-2 py-0.5 bg-purple-900/80 border border-purple-500 rounded text-[10px] text-purple-200 font-bold inline-block">👔 MANAGER</span>'
             : e.isTerminationRisk
             ? '<span class="px-2 py-0.5 bg-red-900/80 border border-red-600 rounded text-[10px] text-red-200 font-bold animate-pulse-red inline-block">⚫ TERMINATE</span>'
+            : e.isAllGrace
+            ? `<span class="px-2 py-0.5 bg-blue-900/80 border border-blue-400 rounded text-[10px] text-blue-100 font-bold inline-block" title="Joined ${graceJoinDate} — entire view covered by 2-month training grace">🎓 GRACE (Joined ${graceJoinDate})</span>`
             : e.achievementPct >= 110
             ? '<span class="px-2 py-0.5 bg-emerald-900/80 border border-emerald-500 rounded text-[10px] text-emerald-200 font-bold">⭐ STAR</span>'
             : e.achievementPct >= thresholds.targetAchieved
@@ -2848,18 +2895,22 @@
             : '<span class="px-2 py-0.5 bg-red-900/60 rounded text-[10px] text-red-300">🔴 Critical</span>';
           
           const hasDebt = (e.penalty?.outstandingDebt || 0) > 0;
-          const rowClass = e.isManager ? 'bg-purple-950/20' : e.isTerminationRisk ? 'termination-row' : hasDebt ? 'bg-red-950/15' : (idx%2?'bg-slate-900/50':'');
+          const rowClass = e.isManager ? 'bg-purple-950/20' : e.isAllGrace ? 'bg-blue-950/20' : e.isTerminationRisk ? 'termination-row' : hasDebt ? 'bg-red-950/15' : (idx%2?'bg-slate-900/50':'');
           
-          // Display achievement values — managers show exempt
+          // Display achievement values — managers/all-grace show exempt
           const achievedCell = e.isManager 
             ? '<div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-xs font-bold text-purple-300 bg-purple-900/60">👔</div>'
+            : e.isAllGrace
+            ? '<div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-xs font-bold text-blue-200 bg-blue-900/60" title="Trainee in grace period">🎓</div>'
             : `<div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-xs font-bold text-white ${e.isTargetAchieved?'cell-green':'cell-red'}">${e.isTargetAchieved?'✓':'✗'}</div>`;
-          const gapCell = e.isManager ? '<span class="text-purple-400 text-xs">—</span>' : (e.shortfall>0?'-'+e.shortfall:'0');
+          const gapCell = e.isManager ? '<span class="text-purple-400 text-xs">—</span>' : e.isAllGrace ? '<span class="text-blue-300 text-xs">—</span>' : (e.shortfall>0?'-'+e.shortfall:'0');
           const pctCell = e.isManager 
             ? '<span class="font-bold text-sm text-purple-400">Exempt</span>'
+            : e.isAllGrace
+            ? '<span class="font-bold text-sm text-blue-300">Grace</span>'
             : `<span class="font-bold text-base ${e.achievementPct>=thresholds.targetAchieved?'text-emerald-400':e.achievementPct>=nearT?'text-blue-400':e.achievementPct>=thresholds.atRisk?'text-amber-400':e.achievementPct>=termPct?'text-red-400':'text-red-600'}">${e.achievementPct.toFixed(0)}%</span>`;
-          const targetReqCell = e.isManager ? '<span class="text-purple-400">—</span>' : e.targetRequired;
-          const thresholdValCell = e.isManager ? '<span class="text-purple-400">—</span>' : (e.targetThresholdValue||0);
+          const targetReqCell = e.isManager ? '<span class="text-purple-400">—</span>' : e.isAllGrace ? '<span class="text-blue-300">—</span>' : e.targetRequired;
+          const thresholdValCell = e.isManager ? '<span class="text-purple-400">—</span>' : e.isAllGrace ? '<span class="text-blue-300">—</span>' : (e.targetThresholdValue||0);
           
           // Penalty / Debt / Net cells (only when penalty enabled)
           const penaltyOn = !!appData.teamStats?.penaltyEnabled;
@@ -3044,7 +3095,7 @@
             <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
               <div class="text-xs uppercase text-gray-500 mb-1">👥 Employees</div>
               <div class="text-2xl font-bold text-white">${s.total}</div>
-              ${s.managersCount > 0 ? `<div class="text-[10px] text-purple-400 mt-0.5">${s.reviewableCount} reviewed • ${s.managersCount} 👔</div>` : ''}
+              ${(s.managersCount > 0 || s.allGraceCount > 0) ? `<div class="text-[10px] mt-0.5"><span class="text-gray-400">${s.reviewableCount} reviewed</span>${s.managersCount > 0 ? `<span class="text-purple-400"> • ${s.managersCount} 👔</span>` : ''}${s.allGraceCount > 0 ? `<span class="text-blue-300"> • ${s.allGraceCount} 🎓</span>` : ''}</div>` : ''}
             </div>
             <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
               <div class="text-xs uppercase text-cyan-400 mb-1">📅 Months</div>
@@ -3061,7 +3112,7 @@
             <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
               <div class="text-xs uppercase ${s.avgAchievement>=targetPct?'text-emerald-400':s.avgAchievement>=s.thresholds.atRisk?'text-amber-400':'text-red-400'} mb-1">📈 Avg Achieved</div>
               <div class="text-2xl font-bold ${s.avgAchievement>=targetPct?'text-emerald-400':s.avgAchievement>=s.thresholds.atRisk?'text-amber-400':'text-red-400'}">${(s.avgAchievement||0).toFixed(1)}%</div>
-              ${s.managersCount > 0 ? `<div class="text-[10px] text-gray-500 mt-0.5">excl. managers</div>` : ''}
+              ${(s.managersCount > 0 || s.allGraceCount > 0) ? `<div class="text-[10px] text-gray-500 mt-0.5">excl. ${s.managersCount > 0 ? 'managers' : ''}${(s.managersCount > 0 && s.allGraceCount > 0) ? ' + ' : ''}${s.allGraceCount > 0 ? 'trainees' : ''}</div>` : ''}
             </div>
             <div class="bg-gradient-to-br from-emerald-900/40 to-emerald-800/20 border border-emerald-700/50 rounded-xl p-3">
               <div class="text-xs uppercase text-emerald-400 mb-1">✅ Achieved ${targetPct}%</div>
@@ -3240,7 +3291,7 @@
       
       const donutChart = `
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <div class="font-semibold mb-3 flex items-center gap-2"><span>🎯</span><span>Achievement Distribution</span>${s.managersCount>0?`<span class="ml-auto text-[10px] text-purple-400">👔 ${s.managersCount} mgrs excluded</span>`:''}</div>
+          <div class="font-semibold mb-3 flex items-center gap-2"><span>🎯</span><span>Achievement Distribution</span>${(s.managersCount>0||s.allGraceCount>0)?`<span class="ml-auto text-[10px] text-gray-400">${s.managersCount>0?`<span class="text-purple-400">👔 ${s.managersCount} mgrs</span>`:''}${(s.managersCount>0&&s.allGraceCount>0)?' + ':''}${s.allGraceCount>0?`<span class="text-blue-300">🎓 ${s.allGraceCount} trainees</span>`:''} excluded</span>`:''}</div>
           <div class="flex items-center gap-4">
             <svg viewBox="0 0 120 120" class="w-32 h-32 shrink-0">
               ${donutArcs}
@@ -3410,6 +3461,10 @@
           if (mData.isManagerMonth) {
             return `<td class="p-1"><div class="heatmap-cell w-10 h-10 rounded-md flex items-center justify-center text-sm bg-gradient-to-br from-purple-700 to-purple-900 text-white border border-purple-500/50" title="${e.name} — ${m.shortLabel} ${m.year}&#10;👔 Manager (exempt from target review)&#10;Output: ${mData.output}">👔</div></td>`;
           }
+          // Grace month — show 🎓 blue cell (trainee in grace period)
+          if (mData.isGraceMonth) {
+            return `<td class="p-1"><div class="heatmap-cell w-10 h-10 rounded-md flex items-center justify-center text-sm bg-gradient-to-br from-blue-700 to-blue-900 text-white border border-blue-400/50" title="${e.name} — ${m.shortLabel} ${m.year}&#10;🎓 Grace period (2-month training, exempt from target review)&#10;Output: ${mData.output}">🎓</div></td>`;
+          }
           const pct = mData.achievementPct;
           const colorClass = getColorClass(pct, mData.isActive);
           return `<td class="p-1"><div class="heatmap-cell w-10 h-10 rounded-md flex items-center justify-center text-[10px] font-bold ${colorClass}" title="${e.name} — ${m.shortLabel} ${m.year}&#10;Output: ${mData.output} / Target: ${mData.target}&#10;Achievement: ${pct.toFixed(1)}%${mData.isProRated?' (pro-rated)':''}">${pct.toFixed(0)}</div></td>`;
@@ -3417,6 +3472,8 @@
         
         const statusBadge = e.isManager
           ? '<span class="px-1.5 py-0.5 bg-purple-900/60 border border-purple-500 rounded text-[10px] text-purple-200 font-bold">👔 MANAGER</span>'
+          : e.isAllGrace
+          ? '<span class="px-1.5 py-0.5 bg-blue-900/60 border border-blue-400 rounded text-[10px] text-blue-200 font-bold">🎓 GRACE</span>'
           : e.isTerminationRisk 
           ? '<span class="px-1.5 py-0.5 bg-red-900/60 border border-red-600 rounded text-[10px] text-red-200 font-bold">⚫ TERMINATE</span>'
           : e.achievementPct >= thresholds.targetAchieved
@@ -3425,9 +3482,11 @@
           ? '<span class="px-1.5 py-0.5 bg-amber-900/60 rounded text-[10px] text-amber-300">⚠️ At Risk</span>'
           : '<span class="px-1.5 py-0.5 bg-red-900/60 rounded text-[10px] text-red-300">🔴 Critical</span>';
         
-        const rowClass = e.isManager ? 'bg-purple-950/20 hover:bg-purple-900/30' : e.isTerminationRisk ? 'termination-row' : 'hover:bg-slate-800/30';
+        const rowClass = e.isManager ? 'bg-purple-950/20 hover:bg-purple-900/30' : e.isAllGrace ? 'bg-blue-950/20 hover:bg-blue-900/30' : e.isTerminationRisk ? 'termination-row' : 'hover:bg-slate-800/30';
         const ytdDisplay = e.isManager
           ? '<div class="font-bold text-sm text-purple-400">👔 Exempt</div>'
+          : e.isAllGrace
+          ? '<div class="font-bold text-sm text-blue-300">🎓 Grace</div>'
           : `<div class="font-bold text-lg ${e.achievementPct>=thresholds.targetAchieved?'text-emerald-400':e.achievementPct>=thresholds.atRisk?'text-amber-400':e.achievementPct>=thresholds.terminationYTD?'text-red-400':'text-red-600'}">${e.achievementPct.toFixed(0)}%</div>`;
         
         return `
@@ -3523,6 +3582,7 @@
           <div class="space-y-2 text-sm">
             <div class="flex justify-between"><span class="text-gray-400">Total Employees</span><span class="font-bold">${s.total}</span></div>
             <div class="flex justify-between"><span class="text-purple-400">👔 Managers (exempt)</span><span class="font-bold text-purple-400">${s.managersCount||0}</span></div>
+            <div class="flex justify-between"><span class="text-blue-300">🎓 Trainees (grace)</span><span class="font-bold text-blue-300">${s.allGraceCount||0}</span></div>
             <div class="flex justify-between"><span class="text-gray-400">Under Review</span><span class="font-bold">${s.reviewableCount||s.total}</span></div>
             <div class="flex justify-between"><span class="text-blue-400">🆕 New Joiners</span><span class="font-bold">${s.newJoinersCount||0}</span></div>
             <div class="flex justify-between"><span class="text-orange-400">🚪 Resigned</span><span class="font-bold">${s.resignedCount||0}</span></div>
@@ -3558,8 +3618,21 @@
         </div>
       ` : '';
 
-      // Termination warning banner (YTD only, NOT for managers)
-      const termBanner = (isYTD && emp.isTerminationRisk && !emp.isManager) ? `
+      // Grace banner (YTD popup) — for all-grace employees OR employees with some grace months
+      const graceJoinDateFmt = emp.joinerDate ? new Date(emp.joinerDate + 'T00:00:00').toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : '';
+      const graceMonthsInView = isYTD ? (emp.months || []).filter(m => m.isGraceMonth).length : 0;
+      const graceBanner = (isYTD && !emp.isManager && graceMonthsInView > 0) ? `
+        <div class="col-span-full bg-gradient-to-r from-blue-950 via-blue-900/80 to-blue-950 border-2 border-blue-400 rounded-xl p-3 flex items-center gap-3 mb-2">
+          <div class="text-3xl">🎓</div>
+          <div class="flex-1">
+            <div class="font-bold text-blue-100">${emp.isAllGrace ? 'GRACE PERIOD (2-month training)' : `TRAINING MONTHS EXCLUDED (${graceMonthsInView} month${graceMonthsInView>1?'s':''})`}</div>
+            <div class="text-xs text-blue-200/80">Joined ${graceJoinDateFmt}. ${emp.isAllGrace ? 'All months in this view fall within the 2-month training grace — no performance review applies. Earnings still count.' : `First ${graceMonthsInView} month${graceMonthsInView>1?'s':''} excluded from achievement %. Review based on ${emp.reviewableMonthsCount} post-grace month${emp.reviewableMonthsCount>1?'s':''}.`}</div>
+          </div>
+        </div>
+      ` : '';
+
+      // Termination warning banner (YTD only, NOT for managers/all-grace)
+      const termBanner = (isYTD && emp.isTerminationRisk && !emp.isManager && !emp.isAllGrace) ? `
         <div class="col-span-full bg-gradient-to-r from-red-950 via-red-900/80 to-red-950 border-2 border-red-600 rounded-xl p-3 flex items-center gap-3 animate-pulse-glow mb-2">
           <div class="text-3xl">⚠️</div>
           <div class="flex-1">
@@ -3590,16 +3663,19 @@
 
       const achievementDisplay = emp.isManager
         ? '<div class="text-xl font-bold text-purple-400">👔 Exempt</div>'
+        : emp.isAllGrace
+        ? '<div class="text-xl font-bold text-blue-300">🎓 Grace</div>'
         : `<div class="text-xl font-bold ${emp.achievementPct>=thresholds.targetAchieved?'text-emerald-400':emp.achievementPct>=(thresholds.nearTarget||86)?'text-blue-400':emp.achievementPct>=thresholds.atRisk?'text-amber-400':emp.achievementPct>=thresholds.terminationYTD?'text-red-400':'text-red-600'}">${emp.achievementPct.toFixed(1)}%</div>`;
 
       document.getElementById('popup-summary').innerHTML = `
         ${mgrBanner}
+        ${graceBanner}
         ${termBanner}
         ${debtBanner}
         ${wipedBanner}
         <div class="text-center"><div class="text-xs text-gray-400">Total Output</div><div class="text-xl font-bold text-cyan-400">${emp.totalDone}</div></div>
         <div class="text-center"><div class="text-xs text-gray-400">Total Points</div><div class="text-xl font-bold text-purple-400">${emp.totalPoints}</div></div>
-        <div class="text-center"><div class="text-xs text-gray-400">Target Required</div><div class="text-xl font-bold text-gray-300">${emp.isManager?'Exempt':emp.targetRequired}</div></div>
+        <div class="text-center"><div class="text-xs text-gray-400">Target Required</div><div class="text-xl font-bold text-gray-300">${emp.isManager?'Exempt':emp.isAllGrace?'🎓 Exempt':emp.targetRequired}</div></div>
         <div class="text-center"><div class="text-xs text-gray-400">Achievement</div>${achievementDisplay}</div>
       `;
 
@@ -4546,6 +4622,34 @@
         cursorY = doc.lastAutoTable.finalY + 8;
       }
 
+      // === GRACE / TRAINEES SECTION (YTD ONLY) ===
+      if (isYTD && (s.allGraceCount||0) > 0) {
+        const graceEmps = appData.employees.filter(e => e.isAllGrace);
+        
+        // Blue banner
+        doc.setFillColor(30, 58, 138);
+        doc.rect(14, cursorY, 269, 10, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(11);
+        doc.text('>> TRAINEES IN GRACE PERIOD — Exempt from Target Review (2-Month Training)', 18, cursorY + 7);
+        doc.setFontSize(9);
+        doc.text(graceEmps.length + ' trainee(s)', 245, cursorY + 7);
+        cursorY += 12;
+        
+        doc.autoTable({
+          head: [['#', 'Name', 'ID', 'Joined', 'Grace Months', 'Output', 'Earnings']],
+          body: graceEmps.map((e, i) => {
+            const graceDt = e.joinerDate ? new Date(e.joinerDate + 'T00:00:00').toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : '-';
+            return [i+1, e.name, e.id, graceDt, e.graceMonthsCount || 0, e.totalDone, '₹' + e.totalEarnings];
+          }),
+          startY: cursorY,
+          styles: { fontSize: 8, textColor: [30, 58, 138] },
+          headStyles: { fillColor: [30, 58, 138], textColor: [255, 255, 255] },
+          alternateRowStyles: { fillColor: [219, 234, 254] }
+        });
+        cursorY = doc.lastAutoTable.finalY + 8;
+      }
+
       // === TERMINATION SECTION (YTD ONLY) ===
       if (isYTD && (s.termination||0) > 0) {
         const termEmps = appData.employees.filter(e => e.isTerminationRisk).sort((a,b) => a.achievementPct - b.achievementPct);
@@ -4748,6 +4852,7 @@
       const mainData = [mainHead];
       const getYTDStatus = e => {
         if (e.isManager) return '👔 MANAGER';
+        if (e.isAllGrace) return '🎓 GRACE (Trainee)';
         if (e.isTerminationRisk) return '⚫ TERMINATION RISK';
         if (e.achievementPct >= 110) return '⭐ Star';
         if (e.achievementPct >= thresholds.targetAchieved) return '✓ Achieved';
@@ -4761,10 +4866,10 @@
           if (penaltyOn) {
             const debtDisplay = e.penalty?.isTerminationWiped ? 'wiped' : (e.penalty?.outstandingDebt || 0);
             mainData.push([
-              e.name + (e.isManager?' 👔':'') + (e.penalty?.outstandingDebt>0?' 🚩':''),
+              e.name + (e.isManager?' 👔':'') + (e.isAllGrace?' 🎓':'') + (e.penalty?.outstandingDebt>0?' 🚩':''),
               e.id, e.dailyTarget, e.activeMonthsCount||e.months?.length||0, e.totalDone, e.totalPoints,
-              e.isManager?'Exempt':e.targetRequired,
-              e.isManager?'Exempt':parseFloat(e.achievementPct.toFixed(2)),
+              e.isManager?'Exempt':e.isAllGrace?'🎓 Grace':e.targetRequired,
+              e.isManager?'Exempt':e.isAllGrace?'Grace':parseFloat(e.achievementPct.toFixed(2)),
               status, e.workingIncentive,
               e.penalty?.totalDeducted || 0,
               debtDisplay,
@@ -4772,7 +4877,7 @@
               e.netTotal != null ? e.netTotal : e.totalEarnings
             ]);
           } else {
-            mainData.push([e.name + (e.isManager?' 👔':''), e.id, e.dailyTarget, e.activeMonthsCount||e.months?.length||0, e.totalDone, e.totalPoints, e.isManager?'Exempt':e.targetRequired, e.isManager?'—':(e.targetThresholdValue||0), e.isManager?'Exempt':(e.isTargetAchieved?'Yes':'No'), e.isManager?'—':e.shortfall, e.isManager?'Exempt':parseFloat(e.achievementPct.toFixed(2)), status, e.trend||'stable', e.workingIncentive, e.holidayPay, e.totalEarnings]);
+            mainData.push([e.name + (e.isManager?' 👔':'') + (e.isAllGrace?' 🎓':''), e.id, e.dailyTarget, e.activeMonthsCount||e.months?.length||0, e.totalDone, e.totalPoints, e.isManager?'Exempt':e.isAllGrace?'🎓 Grace':e.targetRequired, e.isManager?'—':e.isAllGrace?'—':(e.targetThresholdValue||0), e.isManager?'Exempt':e.isAllGrace?'Grace':(e.isTargetAchieved?'Yes':'No'), e.isManager?'—':e.isAllGrace?'—':e.shortfall, e.isManager?'Exempt':e.isAllGrace?'Grace':parseFloat(e.achievementPct.toFixed(2)), status, e.trend||'stable', e.workingIncentive, e.holidayPay, e.totalEarnings]);
           }
         } else {
           mainData.push([e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'Yes':'No', e.shortfall, parseFloat(e.achievementPct.toFixed(2)), e.workingIncentive, e.holidayPay, e.totalEarnings]);
@@ -4783,6 +4888,11 @@
       mainData.push(['Total Employees', s.total]);
       if (isYTD && (s.managersCount||0) > 0) {
         mainData.push(['👔 Managers (Exempt)', s.managersCount]);
+      }
+      if (isYTD && (s.allGraceCount||0) > 0) {
+        mainData.push(['🎓 Trainees in Grace (Exempt)', s.allGraceCount]);
+      }
+      if (isYTD && ((s.managersCount||0) > 0 || (s.allGraceCount||0) > 0)) {
         mainData.push(['Under Review', s.reviewableCount]);
       }
       mainData.push(['Target Achieved (' + thresholds.targetAchieved + '%)', (s.targetAchievedCount||0) + ' / ' + (s.reviewableCount||s.total)]);
@@ -4834,6 +4944,24 @@
         const wsMgr = XLSX.utils.aoa_to_sheet(mgrData);
         wsMgr['!cols'] = [{wch:4},{wch:22},{wch:10},{wch:14},{wch:20},{wch:14},{wch:12},{wch:12},{wch:16},{wch:12},{wch:14}];
         XLSX.utils.book_append_sheet(wb, wsMgr, 'Managers');
+      }
+
+      // === SHEET: Grace Trainees (if any) ===
+      if (isYTD && (s.allGraceCount||0) > 0) {
+        const graceEmps = appData.employees.filter(e => e.isAllGrace);
+        const graceData = [
+          ['🎓 TRAINEES IN GRACE PERIOD — Exempt from Target Review (2-month training)'],
+          ['Report Date:', appData.dateRangeText, '', 'Total Trainees:', graceEmps.length],
+          [],
+          ['#', 'Name', 'ID', 'Date of Joining', 'Grace Months in View', 'Months in Report', 'Total Output', 'Total Points', 'Working Incentive', 'Holiday Pay', 'Total Earnings']
+        ];
+        graceEmps.forEach((e, i) => {
+          const dojDisplay = e.joinerDate ? new Date(e.joinerDate + 'T00:00:00').toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : '-';
+          graceData.push([i+1, e.name, e.id, dojDisplay, e.graceMonthsCount || 0, e.months?.length||0, e.totalDone, e.totalPoints, e.workingIncentive, e.holidayPay, e.totalEarnings]);
+        });
+        const wsGrace = XLSX.utils.aoa_to_sheet(graceData);
+        wsGrace['!cols'] = [{wch:4},{wch:22},{wch:10},{wch:16},{wch:14},{wch:14},{wch:12},{wch:12},{wch:16},{wch:12},{wch:14}];
+        XLSX.utils.book_append_sheet(wb, wsGrace, 'Grace Trainees');
       }
 
       // === SHEET: Penalty Breakdown (YTD, if penalty enabled) ===
@@ -4935,7 +5063,7 @@
               row.push('-', '-', '-');
             }
           });
-          const status = e.isManager ? '👔 MANAGER' : e.isTerminationRisk ? '⚫ TERMINATION' : e.achievementPct>=thresholds.targetAchieved ? 'Achieved' : e.achievementPct>=thresholds.atRisk ? 'At Risk' : 'Critical';
+          const status = e.isManager ? '👔 MANAGER' : e.isAllGrace ? '🎓 GRACE' : e.isTerminationRisk ? '⚫ TERMINATION' : e.achievementPct>=thresholds.targetAchieved ? 'Achieved' : e.achievementPct>=thresholds.atRisk ? 'At Risk' : 'Critical';
           row.push(e.totalDone, e.isManager?'Exempt':e.targetRequired, e.isManager?'Exempt':parseFloat(e.achievementPct.toFixed(2)), status);
           mbData.push(row);
         });
