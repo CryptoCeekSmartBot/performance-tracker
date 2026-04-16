@@ -38,6 +38,7 @@
     .heatmap-cell:hover { transform: scale(1.15); z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
     .cell-star { background: linear-gradient(135deg, #065f46, #10b981); }
     .cell-termination { background: linear-gradient(135deg, #450a0a, #7f1d1d); }
+    .cell-neartarget { background: linear-gradient(135deg, #1e40af, #3b82f6); }
     .gradient-text { background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .gradient-gold { background: linear-gradient(135deg, #f59e0b, #eab308); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .gradient-red { background: linear-gradient(135deg, #dc2626, #991b1b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
@@ -151,6 +152,8 @@
               <option value="atrisk">⚠️ At Risk</option>
               <option value="critical">🔴 Critical</option>
               <option value="termination">⚫ TERMINATION RISK (YTD)</option>
+              <option value="hasdebt">🚩 Has Outstanding Debt (YTD)</option>
+              <option value="neartarget">👌 Near Target (86-94%)</option>
               <option value="managers">👔 Managers</option>
               <option value="star">⭐ Stars</option>
               <option value="incentive">💰 Earning</option>
@@ -423,14 +426,65 @@
               <div class="bg-gradient-to-br from-amber-900/20 to-orange-900/20 border border-amber-700/30 rounded-xl p-4">
                 <h3 class="font-semibold text-amber-400 mb-3">🎯 Achievement Thresholds</h3>
                 <p class="text-xs text-gray-400 mb-3">Configure the percentage thresholds for target achievement status</p>
-                <div class="grid grid-cols-3 gap-4">
+                <div class="grid grid-cols-4 gap-3">
                   <div><label class="block text-xs text-gray-400 mb-1">🟢 Target Achieved (%)</label><input type="number" id="threshold-target" value="95" min="50" max="100" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
-                  <div><label class="block text-xs text-gray-400 mb-1">🟡 At Risk (%)</label><input type="number" id="threshold-atrisk" value="80" min="50" max="100" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
+                  <div><label class="block text-xs text-blue-400 mb-1">👌 Near Target (%)</label><input type="number" id="threshold-neartarget" value="86" min="50" max="100" class="w-full bg-slate-700 border border-blue-700/50 px-3 py-2 rounded-lg text-sm text-center text-blue-300"></div>
+                  <div><label class="block text-xs text-amber-400 mb-1">⚠️ At Risk (%)</label><input type="number" id="threshold-atrisk" value="80" min="50" max="100" class="w-full bg-slate-700 border border-amber-700/50 px-3 py-2 rounded-lg text-sm text-center text-amber-300"></div>
                   <div><label class="block text-xs text-red-400 mb-1">⚫ YTD Termination (%)</label><input type="number" id="threshold-termination" value="70" min="40" max="90" class="w-full bg-slate-700 border border-red-700/50 px-3 py-2 rounded-lg text-sm text-center text-red-300"></div>
                 </div>
                 <div class="mt-3 text-xs text-gray-500 space-y-1">
-                  <div><span class="text-emerald-400">● Green:</span> ≥ Target % | <span class="text-amber-400">● Yellow:</span> ≥ At Risk % | <span class="text-red-400">● Red:</span> Below At Risk %</div>
-                  <div class="pt-1 border-t border-slate-700 mt-1"><span class="text-red-500 font-semibold">⚫ YTD Termination:</span> <span class="text-gray-400">Employees below this % across combined months in YTD are flagged for termination review (management configurable, default 70%). This threshold applies ONLY to YTD reports.</span></div>
+                  <div><span class="text-emerald-400">● ≥ Target:</span> Achieved | <span class="text-blue-400">● Near Target:</span> Grace zone (no penalty) | <span class="text-amber-400">● At Risk:</span> Narrow band | <span class="text-red-400">● Critical/Termination:</span> Below</div>
+                  <div class="pt-1 border-t border-slate-700 mt-1"><span class="text-red-500 font-semibold">⚫ YTD Termination:</span> <span class="text-gray-400">Employees below this % across combined months in YTD are flagged for termination review. YTD reports only.</span></div>
+                </div>
+              </div>
+              
+              <!-- ==================== PENALTY CONFIGURATION ==================== -->
+              <div class="bg-gradient-to-br from-red-900/20 to-rose-900/20 border-2 border-red-700/40 rounded-xl p-4">
+                <div class="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 class="font-semibold text-red-400">⚠️ YTD Penalty Configuration</h3>
+                    <p class="text-xs text-gray-400 mt-1">Carry-forward debt (bank-style) · Deducted from earned incentives (Working + Holiday Pay) · Never from base salary · YTD reports only</p>
+                  </div>
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <span class="text-xs text-gray-300">Enable</span>
+                    <input type="checkbox" id="penalty-enabled" class="w-5 h-5 accent-red-500">
+                  </label>
+                </div>
+                
+                <div id="penalty-config-body" class="space-y-3">
+                  <div>
+                    <div class="text-xs text-gray-400 mb-2">Penalty Rates (% of earned incentive)</div>
+                    <div class="grid grid-cols-4 gap-3">
+                      <div><label class="block text-[10px] text-blue-400 mb-1">👌 Near Target<br>(86-94%)</label><input type="number" id="penalty-neartarget" value="0" min="0" max="100" class="w-full bg-slate-700 border border-blue-700/50 px-3 py-2 rounded-lg text-sm text-center text-blue-300"></div>
+                      <div><label class="block text-[10px] text-amber-400 mb-1">⚠️ At Risk<br>(80-85%)</label><input type="number" id="penalty-atrisk" value="5" min="0" max="100" class="w-full bg-slate-700 border border-amber-700/50 px-3 py-2 rounded-lg text-sm text-center text-amber-300"></div>
+                      <div><label class="block text-[10px] text-red-400 mb-1">🔴 Critical<br>(70-79%)</label><input type="number" id="penalty-critical" value="15" min="0" max="100" class="w-full bg-slate-700 border border-red-700/50 px-3 py-2 rounded-lg text-sm text-center text-red-300"></div>
+                      <div><label class="block text-[10px] text-red-500 mb-1">⚫ Termination<br>(&lt;70%)</label><input type="number" id="penalty-termination" value="25" min="0" max="100" class="w-full bg-slate-700 border border-red-700 px-3 py-2 rounded-lg text-sm text-center text-red-400"></div>
+                    </div>
+                  </div>
+                  
+                  <div class="grid grid-cols-2 gap-3 pt-2 border-t border-red-900/40">
+                    <div>
+                      <label class="block text-xs text-gray-400 mb-1">🛡️ Debt Ceiling (× monthly)</label>
+                      <input type="number" id="penalty-ceiling" value="2" min="1" max="10" step="0.5" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center">
+                      <div class="text-[10px] text-gray-500 mt-1">Max debt = N × monthly incentive pot</div>
+                    </div>
+                    <div>
+                      <label class="block text-xs text-gray-400 mb-1">🆕 New Joiner Grace Months</label>
+                      <input type="number" id="penalty-grace" value="2" min="0" max="12" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center">
+                      <div class="text-[10px] text-gray-500 mt-1">Exempt new joiners for first N months</div>
+                    </div>
+                  </div>
+                  
+                  <div class="pt-2 border-t border-red-900/40 space-y-2">
+                    <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" id="penalty-clear-on-recovery" class="w-4 h-4 accent-emerald-500" checked><span class="text-gray-300">Clear carry-forward debt if employee hits ≥95% in any month (forgiveness)</span></label>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" id="penalty-wipe-on-termination" class="w-4 h-4 accent-red-500" checked><span class="text-gray-300">Wipe debt when employee is in termination tier (don't double-punish)</span></label>
+                  </div>
+                  
+                  <div class="mt-2 p-2 bg-slate-800/50 rounded-lg border border-slate-700">
+                    <div class="text-[10px] text-gray-400 space-y-1">
+                      <div>ℹ️ <strong class="text-red-300">How carry-forward works:</strong> Penalty deducted from Working Incentive first, then from Holiday Pay if needed. If penalty exceeds total incentive pool, remainder becomes debt carried to next month. Debt caps at ceiling. Managers, Resigned, Stars, Achieved, Near Target are exempt. Base salary is NEVER touched.</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -475,6 +529,7 @@
                 <div class="flex justify-between"><span>Resigned:</span><span id="settings-resigned-count" class="text-white">0</span></div>
                 <div class="flex justify-between"><span>👔 Managers:</span><span id="settings-manager-count" class="text-purple-300">0</span></div>
                 <div class="flex justify-between"><span>Schemes:</span><span id="settings-scheme-count" class="text-white">0</span></div>
+                <div class="flex justify-between pt-1 border-t border-slate-700 mt-1"><span>⚠️ Penalty System:</span><span id="settings-penalty-status" class="text-gray-300">OFF</span></div>
               </div>
             </div>
           </div>
@@ -555,7 +610,20 @@
       target8: { minPoints: 7, targetPoints: 8, exceedPoints: 9, minRate: 7, targetRate: 8, exceedRate: 9 },
       target10: { minPoints: 9, targetPoints: 10, exceedPoints: 11, minRate: 7, targetRate: 8, exceedRate: 9 },
       holidayRates: { leadgen: 75, prolink: 100, svg: 75 },
-      thresholds: { targetAchieved: 95, atRisk: 80, terminationYTD: 70 }
+      thresholds: { targetAchieved: 95, atRisk: 80, nearTarget: 86, terminationYTD: 70 },
+      penalty: {
+        enabled: false,      // Master toggle - OFF by default for safer rollout
+        rates: {
+          nearTarget: 0,     // 86-94% no penalty
+          atRisk: 5,         // 80-85% light penalty
+          critical: 15,      // 70-79% moderate
+          termination: 25    // <70% maximum
+        },
+        debtCeilingMultiplier: 2,   // max debt = 2x monthly incentive potential
+        newJoinerGraceMonths: 2,    // first 2 months exempt
+        clearDebtOn95Percent: true, // forgiveness on recovery month
+        wipeDebtOnTermination: true // don't double-punish if terminated
+      }
     };
 
     let holidays = [];
@@ -584,16 +652,36 @@
       const s = localStorage.getItem('pt_schemes');
       incentiveSchemes = s ? JSON.parse(s) : [{ ...DEFAULT_SCHEME }];
       
-      // === AUTO-MIGRATION: Ensure all schemes have terminationYTD field ===
+      // === AUTO-MIGRATION: Ensure all schemes have terminationYTD + nearTarget + penalty ===
       let migrated = false;
       incentiveSchemes.forEach(sch => {
         if (!sch.thresholds) {
-          sch.thresholds = { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
+          sch.thresholds = { targetAchieved: 95, atRisk: 80, nearTarget: 86, terminationYTD: 70 };
           migrated = true;
         } else {
           if (sch.thresholds.targetAchieved === undefined) { sch.thresholds.targetAchieved = 95; migrated = true; }
           if (sch.thresholds.atRisk === undefined) { sch.thresholds.atRisk = 80; migrated = true; }
+          if (sch.thresholds.nearTarget === undefined) { sch.thresholds.nearTarget = 86; migrated = true; }
           if (sch.thresholds.terminationYTD === undefined) { sch.thresholds.terminationYTD = 70; migrated = true; }
+        }
+        // Penalty config migration
+        if (!sch.penalty) {
+          sch.penalty = {
+            enabled: false,
+            rates: { nearTarget: 0, atRisk: 5, critical: 15, termination: 25 },
+            debtCeilingMultiplier: 2,
+            newJoinerGraceMonths: 2,
+            clearDebtOn95Percent: true,
+            wipeDebtOnTermination: true
+          };
+          migrated = true;
+        } else {
+          if (!sch.penalty.rates) { sch.penalty.rates = { nearTarget: 0, atRisk: 5, critical: 15, termination: 25 }; migrated = true; }
+          if (sch.penalty.enabled === undefined) { sch.penalty.enabled = false; migrated = true; }
+          if (sch.penalty.debtCeilingMultiplier === undefined) { sch.penalty.debtCeilingMultiplier = 2; migrated = true; }
+          if (sch.penalty.newJoinerGraceMonths === undefined) { sch.penalty.newJoinerGraceMonths = 2; migrated = true; }
+          if (sch.penalty.clearDebtOn95Percent === undefined) { sch.penalty.clearDebtOn95Percent = true; migrated = true; }
+          if (sch.penalty.wipeDebtOnTermination === undefined) { sch.penalty.wipeDebtOnTermination = true; migrated = true; }
         }
       });
       
@@ -785,6 +873,51 @@
       const checkDate = new Date(year, month - 1, day);
       return checkDate >= effDate;
     }
+
+    // ================================================================
+    // PENALTY HELPERS - Carry-forward debt calculation
+    // ================================================================
+    function getPenaltyTier(pct, thresholds) {
+      const nearT = thresholds.nearTarget || 86;
+      const atR = thresholds.atRisk || 80;
+      const termT = thresholds.terminationYTD || 70;
+      const targetA = thresholds.targetAchieved || 95;
+      if (pct >= 110) return 'star';
+      if (pct >= targetA) return 'achieved';
+      if (pct >= nearT) return 'nearTarget';
+      if (pct >= atR) return 'atRisk';
+      if (pct >= termT) return 'critical';
+      return 'termination';
+    }
+
+    function getPenaltyRate(tier, scheme) {
+      const p = scheme?.penalty?.rates || { nearTarget: 0, atRisk: 5, critical: 15, termination: 25 };
+      if (tier === 'star' || tier === 'achieved') return 0;
+      if (tier === 'nearTarget') return p.nearTarget || 0;
+      if (tier === 'atRisk') return p.atRisk || 5;
+      if (tier === 'critical') return p.critical || 15;
+      if (tier === 'termination') return p.termination || 25;
+      return 0;
+    }
+
+    function isInNewJoinerGrace(empId, monthIdx, scheme) {
+      const grace = scheme?.penalty?.newJoinerGraceMonths || 2;
+      const joiner = getJoinerInfo(empId);
+      if (!joiner) return false;
+      // monthIdx is 0-based chronological position in YTD range
+      // Grace applies to first N months after joining
+      return monthIdx < grace;
+    }
+
+    // Tier meta for UI (color, label, icon)
+    const TIER_META = {
+      star:       { icon: '⭐', label: 'Star',         color: 'emerald', hex: '#10b981' },
+      achieved:   { icon: '✓',  label: 'Achieved',     color: 'emerald', hex: '#059669' },
+      nearTarget: { icon: '👌', label: 'Near Target',  color: 'blue',    hex: '#3b82f6' },
+      atRisk:     { icon: '⚠️', label: 'At Risk',      color: 'amber',   hex: '#f59e0b' },
+      critical:   { icon: '🔴', label: 'Critical',     color: 'red',     hex: '#dc2626' },
+      termination:{ icon: '⚫', label: 'Termination',  color: 'red',     hex: '#7f1d1d' }
+    };
 
     function getEffectiveDateRange(empId, year, month, defaultFrom, defaultTo) {
       let fromDay = defaultFrom, toDay = defaultTo;
@@ -1325,11 +1458,16 @@
       });
 
       const ytdScheme = incentiveSchemes[0] || DEFAULT_SCHEME;
-      const thresholds = ytdScheme.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
-      // === DEFENSIVE FALLBACK: Ensure terminationYTD is never undefined ===
+      const thresholds = ytdScheme.thresholds || { targetAchieved: 95, atRisk: 80, nearTarget: 86, terminationYTD: 70 };
+      // === DEFENSIVE FALLBACK: Ensure all thresholds present ===
       const termThreshold = thresholds.terminationYTD || 70;
       const targetThreshold = thresholds.targetAchieved || 95;
       const atRiskThreshold = thresholds.atRisk || 80;
+      const nearTargetThreshold = thresholds.nearTarget || 86;
+      
+      // Penalty system master toggle
+      const penaltyEnabled = !!(ytdScheme.penalty && ytdScheme.penalty.enabled);
+      const penaltyCfg = ytdScheme.penalty || { enabled: false, rates: { nearTarget:0, atRisk:5, critical:15, termination:25 }, debtCeilingMultiplier: 2, newJoinerGraceMonths: 2, clearDebtOn95Percent: true, wipeDebtOnTermination: true };
       
       const employees = Array.from(empMap.values()).map(emp => {
         const mgrInfo = getManagerInfo(emp.id);
@@ -1343,6 +1481,104 @@
         const isNewJoiner = !!getJoinerInfo(emp.id);
         // TERMINATION RISK: Below threshold AND not resigned AND NOT a manager AND has had some target review period
         const isTerminationRisk = !isManager && achievementPct < termThreshold && !isResigned && emp.targetRequired > 0;
+        const ytdTier = getPenaltyTier(achievementPct, thresholds);
+        
+        // ================================================================
+        // PENALTY CALCULATION WITH CARRY-FORWARD DEBT (bank-style)
+        // ================================================================
+        let penaltyData = {
+          enabled: penaltyEnabled,
+          totalCalculated: 0,
+          totalDeducted: 0,
+          outstandingDebt: 0,
+          hitDebtCeiling: false,
+          isTerminationWiped: false,
+          isManagerExempt: isManager,
+          isResignedExempt: isResigned
+        };
+        
+        if (penaltyEnabled && !isManager && !isResigned) {
+          // Sort months chronologically
+          const sortedMonths = [...emp.months].sort((a, b) => (a.year * 100 + a.month) - (b.year * 100 + b.month));
+          let carryForward = 0;
+          
+          sortedMonths.forEach((m, idx) => {
+            // Default penalty state for this month
+            m.penalty = {
+              tier: 'exempt', rate: 0, calculated: 0, previousDebt: carryForward,
+              totalOwed: 0, deducted: 0, newDebt: 0,
+              debtCleared: false, graceSkipped: false, managerSkipped: false, inactiveSkipped: false
+            };
+            
+            // Skip if manager month or inactive
+            if (m.isManagerMonth) { m.penalty.managerSkipped = true; m.penalty.newDebt = carryForward; return; }
+            if (!m.isActive || m.target === 0) { m.penalty.inactiveSkipped = true; m.penalty.newDebt = carryForward; return; }
+            
+            // New joiner grace period (first N months)
+            if (isNewJoiner && isInNewJoinerGrace(emp.id, idx, ytdScheme)) {
+              m.penalty.graceSkipped = true;
+              m.penalty.newDebt = carryForward;
+              return;
+            }
+            
+            // Calculate monthly tier & rate
+            const mPct = m.target > 0 ? (m.output / m.target * 100) : 0;
+            const mTier = getPenaltyTier(mPct, thresholds);
+            const mRate = getPenaltyRate(mTier, ytdScheme);
+            m.penalty.tier = mTier;
+            m.penalty.rate = mRate;
+            
+            // Safeguard: 95%+ in a month CLEARS carry-forward debt (forgiveness)
+            if (penaltyCfg.clearDebtOn95Percent && mPct >= targetThreshold && carryForward > 0) {
+              m.penalty.debtCleared = true;
+              carryForward = 0;
+              m.penalty.previousDebt = 0;
+            }
+            
+            // Calculate this month's penalty
+            const monthPenalty = Math.floor((m.workingIncentive || 0) * mRate / 100);
+            m.penalty.calculated = monthPenalty;
+            m.penalty.totalOwed = monthPenalty + carryForward;
+            
+            // Deduct from COMBINED INCENTIVE POOL (W.Inc + H.Pay — both are incentive-type, NOT base salary)
+            const deductible = (m.workingIncentive || 0) + (m.holidayPay || 0);
+            m.penalty.deducted = Math.min(m.penalty.totalOwed, deductible);
+            // Track split (how much came from which pool) for transparency
+            const fromWInc = Math.min(m.penalty.deducted, m.workingIncentive || 0);
+            const fromHPay = m.penalty.deducted - fromWInc;
+            m.penalty.deductedFromWInc = fromWInc;
+            m.penalty.deductedFromHPay = fromHPay;
+            
+            // New carry-forward
+            let newDebt = m.penalty.totalOwed - m.penalty.deducted;
+            
+            // Debt ceiling safeguard
+            const monthlyIncentivePotential = (m.target || 0) * 8; // rough estimate
+            const ceiling = monthlyIncentivePotential * (penaltyCfg.debtCeilingMultiplier || 2);
+            if (newDebt > ceiling && ceiling > 0) {
+              penaltyData.hitDebtCeiling = true;
+              newDebt = ceiling;
+            }
+            
+            m.penalty.newDebt = newDebt;
+            carryForward = newDebt;
+            
+            // Accumulate totals
+            penaltyData.totalCalculated += monthPenalty;
+            penaltyData.totalDeducted += m.penalty.deducted;
+          });
+          
+          penaltyData.outstandingDebt = carryForward;
+          
+          // Termination wipe (don't double-punish)
+          if (penaltyCfg.wipeDebtOnTermination && isTerminationRisk) {
+            penaltyData.isTerminationWiped = true;
+            penaltyData.outstandingDebt = 0;
+          }
+        }
+        
+        // Net total = earnings - penalty deducted
+        const netTotal = emp.workingIncentive + emp.holidayPay - penaltyData.totalDeducted;
         
         // Calc trend from non-manager active months
         let ytdTrend = 'stable';
@@ -1367,6 +1603,10 @@
           isTerminationRisk,
           isManager,
           managerInfo: mgrInfo,
+          ytdTier,
+          isNearTarget: ytdTier === 'nearTarget',
+          penalty: penaltyData,
+          netTotal,
           totalEarnings: emp.workingIncentive + emp.holidayPay,
           trend: ytdTrend, alerts: [],
           isNewJoiner,
@@ -1428,13 +1668,23 @@
     function calcTeamStats(employees, wd, scheme) {
       const total = employees.length;
       if (total === 0) return {};
-      const thresholds = scheme?.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
+      const thresholds = scheme?.thresholds || { targetAchieved: 95, atRisk: 80, nearTarget: 86, terminationYTD: 70 };
       const termPct = thresholds.terminationYTD || 70;
+      const nearT = thresholds.nearTarget || 86;
+      const penaltyEnabled = !!(scheme?.penalty?.enabled);
       
       // Separate managers from reviewable employees
       const managerEmps = employees.filter(e => e.isManager);
       const reviewable = employees.filter(e => !e.isManager);
       const reviewableCount = reviewable.length;
+      
+      // Penalty aggregates
+      const totalPenaltyCalculated = employees.reduce((a, b) => a + (b.penalty?.totalCalculated || 0), 0);
+      const totalPenaltyDeducted = employees.reduce((a, b) => a + (b.penalty?.totalDeducted || 0), 0);
+      const totalOutstandingDebt = employees.reduce((a, b) => a + (b.penalty?.outstandingDebt || 0), 0);
+      const employeesWithDebt = employees.filter(e => (e.penalty?.outstandingDebt || 0) > 0).length;
+      const employeesPenalized = employees.filter(e => (e.penalty?.totalDeducted || 0) > 0).length;
+      const totalNetPayable = employees.reduce((a, b) => a + (b.netTotal != null ? b.netTotal : b.totalEarnings), 0);
       
       return {
         total,
@@ -1443,7 +1693,8 @@
         avgAchievement: reviewableCount > 0 ? reviewable.reduce((a, b) => a + b.achievementPct, 0) / reviewableCount : 0,
         star: reviewable.filter(e => e.achievementPct >= 110).length,
         onTrack: reviewable.filter(e => e.achievementPct >= thresholds.targetAchieved).length,
-        atRisk: reviewable.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < thresholds.targetAchieved).length,
+        nearTarget: reviewable.filter(e => e.achievementPct >= nearT && e.achievementPct < thresholds.targetAchieved).length,
+        atRisk: reviewable.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < nearT).length,
         critical: reviewable.filter(e => e.achievementPct >= termPct && e.achievementPct < thresholds.atRisk).length,
         termination: employees.filter(e => e.isTerminationRisk).length,
         notAchievedCount: reviewable.filter(e => !e.isTargetAchieved).length,
@@ -1454,6 +1705,10 @@
         totalWorkingIncentive: employees.reduce((a, b) => a + b.workingIncentive, 0),
         totalHolidayPay: employees.reduce((a, b) => a + b.holidayPay, 0),
         totalEarnings: employees.reduce((a, b) => a + b.totalEarnings, 0),
+        totalNetPayable,
+        penaltyEnabled,
+        totalPenaltyCalculated, totalPenaltyDeducted, totalOutstandingDebt,
+        employeesWithDebt, employeesPenalized,
         workingDays: wd,
         newJoinersCount: employees.filter(e => e.isNewJoiner).length,
         resignedCount: employees.filter(e => e.isResigned).length,
@@ -1601,9 +1856,11 @@
         case 'targetachieved': list = list.filter(e => e.isTargetAchieved && !e.isManager); break;
         case 'notachieved': list = list.filter(e => !e.isTargetAchieved && !e.isManager); break;
         case 'ontrack': list = list.filter(e => e.achievementPct >= thresholds.targetAchieved && !e.isManager); break;
-        case 'atrisk': list = list.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < thresholds.targetAchieved && !e.isManager); break;
-        case 'critical': list = list.filter(e => e.achievementPct < thresholds.atRisk && !e.isManager); break;
+        case 'atrisk': list = list.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < (thresholds.nearTarget||86) && !e.isManager); break;
+        case 'neartarget': list = list.filter(e => e.achievementPct >= (thresholds.nearTarget||86) && e.achievementPct < thresholds.targetAchieved && !e.isManager); break;
+        case 'critical': list = list.filter(e => e.achievementPct < thresholds.atRisk && !e.isManager && !e.isTerminationRisk); break;
         case 'termination': list = list.filter(e => e.isTerminationRisk); break;
+        case 'hasdebt': list = list.filter(e => (e.penalty?.outstandingDebt||0) > 0); break;
         case 'managers': list = list.filter(e => e.isManager); break;
         case 'star': list = list.filter(e => e.achievementPct >= 110 && !e.isManager); break;
         case 'incentive': list = list.filter(e => e.workingIncentive > 0); break;
@@ -1644,6 +1901,7 @@
       const thresholds = scheme?.thresholds || { targetAchieved: 95, atRisk: 80 };
 
       if (isYTD) {
+        const penaltyOn = !!appData.teamStats?.penaltyEnabled;
         document.getElementById('table-header').innerHTML = `<tr>
           <th class="px-4 py-3 text-left font-semibold border-b border-slate-700">Employee</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">T</th>
@@ -1658,8 +1916,10 @@
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">%</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700">Status</th>
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-emerald-400">W.Inc</th>
+          ${penaltyOn ? '<th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-red-400">⚠️ Penalty</th>' : ''}
+          ${penaltyOn ? '<th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-red-400">🚩 Debt</th>' : ''}
           <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-purple-400">H.Pay</th>
-          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-amber-400">Total ₹</th>
+          <th class="px-3 py-3 text-center font-semibold border-b border-slate-700 text-amber-400">${penaltyOn ? 'Net ₹' : 'Total ₹'}</th>
         </tr>`;
         document.getElementById('table-body').innerHTML = employees.map((e, idx) => {
           const termPct = thresholds.terminationYTD || 70;
@@ -1675,17 +1935,23 @@
             return `<span class="inline-block w-2 h-2 rounded-full" style="background:${color}" title="${m.shortLabel}: ${m.achievementPct.toFixed(1)}%"></span>`;
           }).join(' ');
           
+          const nearT = thresholds.nearTarget || 86;
           const statusBadge = e.isManager
             ? '<span class="px-2 py-0.5 bg-purple-900/80 border border-purple-500 rounded text-[10px] text-purple-200 font-bold inline-block">👔 MANAGER</span>'
             : e.isTerminationRisk
             ? '<span class="px-2 py-0.5 bg-red-900/80 border border-red-600 rounded text-[10px] text-red-200 font-bold animate-pulse-red inline-block">⚫ TERMINATE</span>'
+            : e.achievementPct >= 110
+            ? '<span class="px-2 py-0.5 bg-emerald-900/80 border border-emerald-500 rounded text-[10px] text-emerald-200 font-bold">⭐ STAR</span>'
             : e.achievementPct >= thresholds.targetAchieved
             ? '<span class="px-2 py-0.5 bg-emerald-900/60 rounded text-[10px] text-emerald-300">✓ Achieved</span>'
+            : e.achievementPct >= nearT
+            ? '<span class="px-2 py-0.5 bg-blue-900/60 border border-blue-500/40 rounded text-[10px] text-blue-300">👌 Near Target</span>'
             : e.achievementPct >= thresholds.atRisk
             ? '<span class="px-2 py-0.5 bg-amber-900/60 rounded text-[10px] text-amber-300">⚠️ At Risk</span>'
             : '<span class="px-2 py-0.5 bg-red-900/60 rounded text-[10px] text-red-300">🔴 Critical</span>';
           
-          const rowClass = e.isManager ? 'bg-purple-950/20' : e.isTerminationRisk ? 'termination-row' : (idx%2?'bg-slate-900/50':'');
+          const hasDebt = (e.penalty?.outstandingDebt || 0) > 0;
+          const rowClass = e.isManager ? 'bg-purple-950/20' : e.isTerminationRisk ? 'termination-row' : hasDebt ? 'bg-red-950/15' : (idx%2?'bg-slate-900/50':'');
           
           // Display achievement values — managers show exempt
           const achievedCell = e.isManager 
@@ -1694,12 +1960,23 @@
           const gapCell = e.isManager ? '<span class="text-purple-400 text-xs">—</span>' : (e.shortfall>0?'-'+e.shortfall:'0');
           const pctCell = e.isManager 
             ? '<span class="font-bold text-sm text-purple-400">Exempt</span>'
-            : `<span class="font-bold text-base ${e.achievementPct>=thresholds.targetAchieved?'text-emerald-400':e.achievementPct>=thresholds.atRisk?'text-amber-400':e.achievementPct>=termPct?'text-red-400':'text-red-600'}">${e.achievementPct.toFixed(0)}%</span>`;
+            : `<span class="font-bold text-base ${e.achievementPct>=thresholds.targetAchieved?'text-emerald-400':e.achievementPct>=nearT?'text-blue-400':e.achievementPct>=thresholds.atRisk?'text-amber-400':e.achievementPct>=termPct?'text-red-400':'text-red-600'}">${e.achievementPct.toFixed(0)}%</span>`;
           const targetReqCell = e.isManager ? '<span class="text-purple-400">—</span>' : e.targetRequired;
           const thresholdValCell = e.isManager ? '<span class="text-purple-400">—</span>' : (e.targetThresholdValue||0);
           
+          // Penalty / Debt / Net cells (only when penalty enabled)
+          const penaltyOn = !!appData.teamStats?.penaltyEnabled;
+          const penaltyDeducted = e.penalty?.totalDeducted || 0;
+          const outstandingDebt = e.penalty?.outstandingDebt || 0;
+          const netPayable = e.netTotal != null ? e.netTotal : e.totalEarnings;
+          const wipedSuffix = e.penalty?.isTerminationWiped ? ' <span class="text-[9px] text-gray-500">(wiped)</span>' : '';
+          
+          const penaltyCell = penaltyOn ? `<td class="px-3 py-2 text-center border-b border-slate-700 ${penaltyDeducted>0?'text-red-400 font-bold':'text-gray-600'}">${penaltyDeducted>0?'-₹'+penaltyDeducted:'₹0'}</td>` : '';
+          const debtCell = penaltyOn ? `<td class="px-3 py-2 text-center border-b border-slate-700">${outstandingDebt>0?`<span class="px-2 py-0.5 bg-red-900/80 border border-red-500 rounded text-[10px] text-red-200 font-bold animate-pulse-red">🚩 ₹${outstandingDebt}</span>`:e.penalty?.isTerminationWiped?'<span class="text-[10px] text-gray-500">wiped</span>':'<span class="text-[10px] text-emerald-500">✓ clear</span>'}</td>` : '';
+          const netCell = penaltyOn ? `<td class="px-3 py-2 text-center border-b border-slate-700 text-amber-400 font-bold">₹${netPayable}${wipedSuffix}</td>` : `<td class="px-3 py-2 text-center border-b border-slate-700 text-amber-400 font-bold">₹${e.totalEarnings}</td>`;
+          
           return `<tr class="hover:bg-slate-800 cursor-pointer ${rowClass}" onclick="showEmployeePopup('${e.id}')">
-            <td class="px-4 py-2 border-b border-slate-700"><div class="font-medium ${e.isManager?'text-purple-200':''}">${e.name}${e.isManager?' 👔':''}${e.isTerminationRisk?' ⚫':''}</div><div class="text-xs text-gray-500 flex items-center gap-1">(${e.id})${e.isNewJoiner?'<span class="ml-1 px-1 bg-blue-600 rounded text-[10px]">🆕</span>':''}${e.isResigned?'<span class="ml-1 px-1 bg-orange-600 rounded text-[10px]">🚪</span>':''} <span class="ml-1 flex gap-0.5">${monthDots}</span></div></td>
+            <td class="px-4 py-2 border-b border-slate-700"><div class="font-medium ${e.isManager?'text-purple-200':''}">${e.name}${e.isManager?' 👔':''}${e.isTerminationRisk?' ⚫':''}${hasDebt&&!e.isTerminationRisk?' 🚩':''}</div><div class="text-xs text-gray-500 flex items-center gap-1">(${e.id})${e.isNewJoiner?'<span class="ml-1 px-1 bg-blue-600 rounded text-[10px]">🆕</span>':''}${e.isResigned?'<span class="ml-1 px-1 bg-orange-600 rounded text-[10px]">🚪</span>':''} <span class="ml-1 flex gap-0.5">${monthDots}</span></div></td>
             <td class="px-3 py-2 text-center border-b border-slate-700 font-bold">${e.dailyTarget}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700">${e.months?.length||0}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700 text-lg ${e.trend==='up'?'text-emerald-400':e.trend==='down'?'text-red-400':'text-gray-400'}">${e.isManager?'—':(e.trend==='up'?'↑':e.trend==='down'?'↓':'→')}</td>
@@ -1712,8 +1989,10 @@
             <td class="px-3 py-2 text-center border-b border-slate-700">${pctCell}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700">${statusBadge}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700 text-emerald-400 font-medium">₹${e.workingIncentive}</td>
+            ${penaltyCell}
+            ${debtCell}
             <td class="px-3 py-2 text-center border-b border-slate-700 text-purple-400 font-medium">₹${e.holidayPay}</td>
-            <td class="px-3 py-2 text-center border-b border-slate-700 text-amber-400 font-bold">₹${e.totalEarnings}</td>
+            ${netCell}
           </tr>`;
         }).join('');
       } else {
@@ -1901,6 +2180,31 @@
             </div>
           </div>
           
+          ${s.penaltyEnabled ? `
+          <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="bg-gradient-to-br from-rose-950 to-red-900/30 border border-red-700/40 rounded-xl p-3">
+              <div class="text-xs uppercase text-red-300 mb-1 flex items-center gap-1">⚠️ Penalty Deducted</div>
+              <div class="text-2xl font-bold text-red-300">₹${(s.totalPenaltyDeducted||0).toLocaleString()}</div>
+              <div class="text-[10px] text-gray-500 mt-0.5">${s.employeesPenalized||0} employees</div>
+            </div>
+            <div class="bg-gradient-to-br from-rose-950 to-red-950 border-2 ${s.totalOutstandingDebt>0?'border-red-500 animate-pulse-glow':'border-red-800/50'} rounded-xl p-3">
+              <div class="text-xs uppercase text-red-400 mb-1 flex items-center gap-1">🚩 Outstanding Debt</div>
+              <div class="text-2xl font-bold ${s.totalOutstandingDebt>0?'text-red-400':'text-gray-500'}">₹${(s.totalOutstandingDebt||0).toLocaleString()}</div>
+              <div class="text-[10px] text-gray-500 mt-0.5">${s.employeesWithDebt||0} employees</div>
+            </div>
+            <div class="bg-gradient-to-br from-orange-950 to-amber-900/20 border border-amber-700/40 rounded-xl p-3">
+              <div class="text-xs uppercase text-amber-300 mb-1">📊 Penalty Calculated</div>
+              <div class="text-xl font-bold text-amber-300">₹${(s.totalPenaltyCalculated||0).toLocaleString()}</div>
+              <div class="text-[10px] text-gray-500 mt-0.5">before cap</div>
+            </div>
+            <div class="bg-gradient-to-br from-emerald-950 to-emerald-900/20 border-2 border-emerald-700/40 rounded-xl p-3">
+              <div class="text-xs uppercase text-emerald-300 mb-1">💰 Net Payable</div>
+              <div class="text-xl font-bold text-emerald-300">₹${(s.totalNetPayable||0).toLocaleString()}</div>
+              <div class="text-[10px] text-gray-500 mt-0.5">after penalty</div>
+            </div>
+          </div>
+          ` : ''}
+          
           ${criticalBanner}
         </div>
       `;
@@ -1986,6 +2290,14 @@
                       </div>
                     </div>
                   ` : ''}
+                  
+                  ${s.penaltyEnabled ? `
+                    <div class="mt-2 pt-2 border-t border-red-900/50 grid grid-cols-3 gap-1 text-center">
+                      <div><div class="text-[9px] text-gray-500 uppercase">W.Inc</div><div class="text-xs font-bold text-emerald-400">₹${e.workingIncentive}</div></div>
+                      <div><div class="text-[9px] text-gray-500 uppercase">Penalty</div><div class="text-xs font-bold text-red-400">-₹${e.penalty?.totalDeducted||0}</div></div>
+                      <div><div class="text-[9px] text-gray-500 uppercase">Debt</div><div class="text-xs font-bold ${e.penalty?.isTerminationWiped?'text-gray-500':(e.penalty?.outstandingDebt>0?'text-red-400':'text-emerald-500')}">${e.penalty?.isTerminationWiped?'wiped':(e.penalty?.outstandingDebt>0?'🚩₹'+e.penalty.outstandingDebt:'✓')}</div></div>
+                    </div>
+                  ` : ''}
                 </div>
               `;
             }).join('')}
@@ -2000,10 +2312,12 @@
       const thresholds = s.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
       
       // === CHART 1: Achievement Distribution Donut ===
+      const nearT = thresholds.nearTarget || 86;
       const buckets = [
         { label: 'Star (≥110%)', value: s.star || 0, color: '#10b981' },
         { label: `Achieved (${thresholds.targetAchieved}-109%)`, value: Math.max(0, (s.onTrack||0) - (s.star||0)), color: '#059669' },
-        { label: `At Risk (${thresholds.atRisk}-${thresholds.targetAchieved-1}%)`, value: s.atRisk || 0, color: '#f59e0b' },
+        { label: `👌 Near Target (${nearT}-${thresholds.targetAchieved-1}%)`, value: s.nearTarget || 0, color: '#3b82f6' },
+        { label: `At Risk (${thresholds.atRisk}-${nearT-1}%)`, value: s.atRisk || 0, color: '#f59e0b' },
         { label: `Critical (${thresholds.terminationYTD}-${thresholds.atRisk-1}%)`, value: s.critical || 0, color: '#dc2626' },
         { label: `Termination (<${thresholds.terminationYTD}%)`, value: s.termination || 0, color: '#7f1d1d' }
       ];
@@ -2179,9 +2493,11 @@
       });
       
       const getColorClass = (pct, isActive) => {
+        const nearT = thresholds.nearTarget || 86;
         if (!isActive) return 'bg-slate-800/40 text-gray-600';
         if (pct >= 110) return 'cell-star text-white';
         if (pct >= thresholds.targetAchieved) return 'cell-green text-white';
+        if (pct >= nearT) return 'cell-neartarget text-white';
         if (pct >= thresholds.atRisk) return 'cell-yellow text-white';
         if (pct >= thresholds.terminationYTD) return 'cell-red text-white';
         return 'cell-termination text-white';
@@ -2241,6 +2557,7 @@
             <div class="flex flex-wrap items-center gap-2 text-[10px]">
               <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-star"></div><span class="text-gray-400">≥110%</span></div>
               <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-green"></div><span class="text-gray-400">≥${thresholds.targetAchieved}%</span></div>
+              <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-neartarget"></div><span class="text-gray-400">👌 ≥${thresholds.nearTarget||86}%</span></div>
               <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-yellow"></div><span class="text-gray-400">≥${thresholds.atRisk}%</span></div>
               <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-red"></div><span class="text-gray-400">≥${thresholds.terminationYTD}%</span></div>
               <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-termination"></div><span class="text-red-400 font-bold">&lt;${thresholds.terminationYTD}% Terminate</span></div>
@@ -2266,18 +2583,33 @@
     
     function renderYTDFooterStats() {
       const s = appData.teamStats;
-      const thresholds = s.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
+      const thresholds = s.thresholds || { targetAchieved: 95, atRisk: 80, nearTarget: 86, terminationYTD: 70 };
+      const nearT = thresholds.nearTarget || 86;
       document.getElementById('footer-stats').innerHTML = `
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
           <div class="font-semibold mb-3">📊 Performance Distribution</div>
           <div class="space-y-2 text-sm">
             <div class="flex justify-between"><span class="text-emerald-400">⭐ Star (≥110%)</span><span class="font-bold">${s.star||0}</span></div>
             <div class="flex justify-between"><span class="text-emerald-400">✅ Achieved (≥${thresholds.targetAchieved}%)</span><span class="font-bold">${s.targetAchievedCount||0}</span></div>
-            <div class="flex justify-between"><span class="text-amber-400">⚠️ At Risk (${thresholds.atRisk}-${thresholds.targetAchieved-1}%)</span><span class="font-bold">${s.atRisk||0}</span></div>
+            <div class="flex justify-between"><span class="text-blue-400">👌 Near Target (${nearT}-${thresholds.targetAchieved-1}%)</span><span class="font-bold text-blue-400">${s.nearTarget||0}</span></div>
+            <div class="flex justify-between"><span class="text-amber-400">⚠️ At Risk (${thresholds.atRisk}-${nearT-1}%)</span><span class="font-bold">${s.atRisk||0}</span></div>
             <div class="flex justify-between"><span class="text-red-400">🔴 Critical (${thresholds.terminationYTD}-${thresholds.atRisk-1}%)</span><span class="font-bold">${s.critical||0}</span></div>
             <div class="flex justify-between border-t border-red-900/50 pt-2 mt-2"><span class="text-red-500 font-bold">⚫ Termination (&lt;${thresholds.terminationYTD}%)</span><span class="font-bold text-red-500 text-lg">${s.termination||0}</span></div>
           </div>
         </div>
+        ${s.penaltyEnabled ? `
+        <div class="bg-gradient-to-br from-red-950/40 to-slate-900 border-2 border-red-700/50 rounded-xl p-4">
+          <div class="font-semibold mb-3 text-red-300">⚠️ Penalty System (Active)</div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-amber-300">📊 Total Calculated</span><span class="font-bold text-amber-300">₹${(s.totalPenaltyCalculated||0).toLocaleString()}</span></div>
+            <div class="flex justify-between"><span class="text-red-400">⚠️ Actually Deducted</span><span class="font-bold text-red-400">₹${(s.totalPenaltyDeducted||0).toLocaleString()}</span></div>
+            <div class="flex justify-between"><span class="text-rose-400">🚩 Outstanding Debt</span><span class="font-bold text-rose-400">₹${(s.totalOutstandingDebt||0).toLocaleString()}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Employees Penalized</span><span class="font-bold">${s.employeesPenalized||0}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Employees with Debt</span><span class="font-bold text-red-400">${s.employeesWithDebt||0}</span></div>
+            <div class="flex justify-between border-t border-red-900/50 pt-2 mt-2"><span class="text-emerald-400 font-semibold">💰 Net Payable (after)</span><span class="font-bold text-emerald-400">₹${(s.totalNetPayable||0).toLocaleString()}</span></div>
+          </div>
+        </div>
+        ` : `
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
           <div class="font-semibold mb-3">💰 Incentive Summary</div>
           <div class="space-y-2 text-sm">
@@ -2285,8 +2617,10 @@
             <div class="flex justify-between"><span class="text-emerald-400">💼 Working Incentive</span><span class="font-bold text-emerald-400">₹${s.totalWorkingIncentive?.toLocaleString()||0}</span></div>
             <div class="flex justify-between"><span class="text-purple-400">🎁 Holiday Pay</span><span class="font-bold text-purple-400">₹${s.totalHolidayPay?.toLocaleString()||0}</span></div>
             <div class="flex justify-between border-t border-slate-700 pt-2 mt-2"><span class="text-amber-400 font-semibold">💵 Total Earnings</span><span class="font-bold text-amber-400">₹${s.totalEarnings?.toLocaleString()||0}</span></div>
+            <div class="flex justify-between text-[10px] text-gray-500 pt-2 mt-1 border-t border-slate-800"><span>ℹ️ Penalty system is OFF</span><span>Enable in Incentive settings</span></div>
           </div>
         </div>
+        `}
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
           <div class="font-semibold mb-3">👥 Team Summary</div>
           <div class="space-y-2 text-sm">
@@ -2338,13 +2672,34 @@
         </div>
       ` : '';
 
+      // Debt banner (YTD only — has outstanding debt)
+      const debtBanner = (isYTD && (emp.penalty?.outstandingDebt || 0) > 0) ? `
+        <div class="col-span-full bg-gradient-to-r from-rose-950 via-red-900/70 to-rose-950 border-2 border-red-500 rounded-xl p-3 flex items-center gap-3 animate-pulse-glow mb-2">
+          <div class="text-3xl">🚩</div>
+          <div class="flex-1">
+            <div class="font-bold text-red-200">OUTSTANDING DEBT: ₹${emp.penalty.outstandingDebt}</div>
+            <div class="text-xs text-red-300/80">Carry-forward from previous months — will be recovered from future incentives. ${emp.penalty.hitDebtCeiling?' Debt capped at ceiling (2× monthly).':''}</div>
+          </div>
+        </div>
+      ` : '';
+
+      // Debt wiped banner (if terminated and debt wiped)
+      const wipedBanner = (isYTD && emp.penalty?.isTerminationWiped) ? `
+        <div class="col-span-full bg-slate-800/60 border border-slate-600 rounded-xl p-2 flex items-center gap-2 mb-2">
+          <div class="text-lg">✓</div>
+          <div class="text-xs text-gray-400">Carry-forward debt wiped due to termination tier (no double-punishment).</div>
+        </div>
+      ` : '';
+
       const achievementDisplay = emp.isManager
         ? '<div class="text-xl font-bold text-purple-400">👔 Exempt</div>'
-        : `<div class="text-xl font-bold ${emp.achievementPct>=thresholds.targetAchieved?'text-emerald-400':emp.achievementPct>=thresholds.atRisk?'text-amber-400':emp.achievementPct>=thresholds.terminationYTD?'text-red-400':'text-red-600'}">${emp.achievementPct.toFixed(1)}%</div>`;
+        : `<div class="text-xl font-bold ${emp.achievementPct>=thresholds.targetAchieved?'text-emerald-400':emp.achievementPct>=(thresholds.nearTarget||86)?'text-blue-400':emp.achievementPct>=thresholds.atRisk?'text-amber-400':emp.achievementPct>=thresholds.terminationYTD?'text-red-400':'text-red-600'}">${emp.achievementPct.toFixed(1)}%</div>`;
 
       document.getElementById('popup-summary').innerHTML = `
         ${mgrBanner}
         ${termBanner}
+        ${debtBanner}
+        ${wipedBanner}
         <div class="text-center"><div class="text-xs text-gray-400">Total Output</div><div class="text-xl font-bold text-cyan-400">${emp.totalDone}</div></div>
         <div class="text-center"><div class="text-xs text-gray-400">Total Points</div><div class="text-xl font-bold text-purple-400">${emp.totalPoints}</div></div>
         <div class="text-center"><div class="text-xs text-gray-400">Target Required</div><div class="text-xl font-bold text-gray-300">${emp.isManager?'Exempt':emp.targetRequired}</div></div>
@@ -2390,6 +2745,7 @@
         ` : '';
         
         // Month-by-month detailed table
+        const penaltyOn = !!appData.teamStats?.penaltyEnabled;
         const monthRows = months.map(m => {
           // Manager month — special row
           if (m.isManagerMonth) {
@@ -2406,11 +2762,26 @@
             `;
           }
           const pct = m.target > 0 ? (m.output/m.target*100) : 0;
-          const statusColor = !m.isActive ? 'text-gray-500' : pct>=thresholds.targetAchieved?'text-emerald-400':pct>=thresholds.atRisk?'text-amber-400':pct>=thresholds.terminationYTD?'text-red-400':'text-red-600';
-          const statusLabel = !m.isActive ? '— Not Active' : pct>=thresholds.targetAchieved?'✓ Achieved':pct>=thresholds.atRisk?'⚠️ At Risk':pct>=thresholds.terminationYTD?'🔴 Critical':'⚫ Below Term.';
+          const nearT = thresholds.nearTarget || 86;
+          const statusColor = !m.isActive ? 'text-gray-500' : pct>=thresholds.targetAchieved?'text-emerald-400':pct>=nearT?'text-blue-400':pct>=thresholds.atRisk?'text-amber-400':pct>=thresholds.terminationYTD?'text-red-400':'text-red-600';
+          const statusLabel = !m.isActive ? '— Not Active' : pct>=thresholds.targetAchieved?'✓ Achieved':pct>=nearT?'👌 Near Target':pct>=thresholds.atRisk?'⚠️ At Risk':pct>=thresholds.terminationYTD?'🔴 Critical':'⚫ Below Term.';
           const rowBg = !m.isActive ? 'bg-slate-800/30' : m.isProRated ? 'bg-blue-900/10' : (pct<thresholds.terminationYTD ? 'bg-red-900/20' : 'bg-slate-800');
+          
+          // Penalty info for this month
+          const pData = m.penalty;
+          const splitInfo = (pData && pData.deducted > 0 && pData.deductedFromHPay > 0) ? ` <span class="text-[9px] text-purple-400" title="W.Inc: ₹${pData.deductedFromWInc} · H.Pay: ₹${pData.deductedFromHPay}">(W:${pData.deductedFromWInc}+H:${pData.deductedFromHPay})</span>` : '';
+          const penaltyDisplay = (penaltyOn && pData && m.isActive && !m.isManagerMonth) ? `
+            <div class="col-span-12 mt-1 pt-1 border-t border-slate-700/50 grid grid-cols-12 gap-2 text-[10px]">
+              <div class="col-span-3 text-gray-500">${pData.graceSkipped?'🆕 Grace period':pData.debtCleared?'✓ Debt forgiven (95%+)':pData.tier==='star'||pData.tier==='achieved'||pData.tier==='nearTarget'?'✓ No penalty tier':'Penalty tier: '+pData.tier+' ('+pData.rate+'%)'}</div>
+              <div class="col-span-2 text-center text-amber-300">Calc: ₹${pData.calculated}</div>
+              <div class="col-span-2 text-center text-gray-400">Prev debt: ₹${pData.previousDebt}</div>
+              <div class="col-span-2 text-center text-red-400">Deducted: -₹${pData.deducted}${splitInfo}</div>
+              <div class="col-span-3 text-right ${pData.newDebt>0?'text-red-400 font-bold':'text-emerald-500'}">${pData.newDebt>0?'🚩 Carry: ₹'+pData.newDebt:'✓ Cleared'}</div>
+            </div>
+          ` : '';
+          
           return `
-            <div class="grid grid-cols-12 gap-2 p-2 rounded text-xs items-center ${rowBg}">
+            <div class="grid grid-cols-12 gap-x-2 gap-y-1 p-2 rounded text-xs items-center ${rowBg}">
               <div class="col-span-2 font-semibold text-gray-200">${m.shortLabel} ${m.year}${m.isProRated?'<div class="text-[9px] text-blue-400">pro-rated</div>':''}</div>
               <div class="col-span-1 text-center text-gray-400">${m.workingDays}d</div>
               <div class="col-span-2 text-center text-gray-300">${m.target}</div>
@@ -2418,9 +2789,25 @@
               <div class="col-span-1 text-center text-purple-400">${m.points}pt</div>
               <div class="col-span-2 text-center font-bold ${statusColor}">${pct.toFixed(1)}%</div>
               <div class="col-span-2 text-right text-[10px] ${statusColor}">${statusLabel}</div>
+              ${penaltyDisplay}
             </div>
           `;
         }).join('');
+        
+        // Penalty summary row (if enabled and has penalty)
+        const penaltySummaryRow = (penaltyOn && (emp.penalty?.totalCalculated > 0 || emp.penalty?.totalDeducted > 0)) ? `
+          <div class="mt-3 p-3 bg-gradient-to-r from-rose-950/60 to-red-950/40 border-2 border-red-700/50 rounded-xl">
+            <div class="text-xs font-bold text-red-300 mb-2 uppercase">⚠️ Penalty Calculation Summary (YTD)</div>
+            <div class="grid grid-cols-4 gap-3 text-center">
+              <div><div class="text-[10px] text-gray-400">Total Calculated</div><div class="text-base font-bold text-amber-300">₹${emp.penalty.totalCalculated}</div></div>
+              <div><div class="text-[10px] text-gray-400">Actually Deducted</div><div class="text-base font-bold text-red-400">-₹${emp.penalty.totalDeducted}</div></div>
+              <div><div class="text-[10px] text-gray-400">Outstanding Debt</div><div class="text-base font-bold ${emp.penalty.isTerminationWiped?'text-gray-500':(emp.penalty.outstandingDebt>0?'text-red-400':'text-emerald-500')}">${emp.penalty.isTerminationWiped?'wiped':(emp.penalty.outstandingDebt>0?'🚩 ₹'+emp.penalty.outstandingDebt:'✓ Clear')}</div></div>
+              <div><div class="text-[10px] text-gray-400">Net Payable</div><div class="text-base font-bold text-emerald-400">₹${emp.netTotal}</div></div>
+            </div>
+            ${emp.penalty.isTerminationWiped?'<div class="text-[10px] text-gray-400 mt-2 text-center">ℹ️ Debt wiped due to termination tier (no double-punishment)</div>':''}
+            ${emp.penalty.hitDebtCeiling?'<div class="text-[10px] text-orange-400 mt-2 text-center">⚠️ Debt ceiling reached — further accumulation halted</div>':''}
+          </div>
+        ` : '';
         
         document.getElementById('popup-working-breakdown').innerHTML = barChart + `
           <div class="grid grid-cols-12 gap-2 p-2 text-[10px] uppercase text-gray-500 border-b border-slate-700 sticky top-0 bg-slate-900">
@@ -2433,6 +2820,7 @@
             <div class="col-span-2 text-right">Status</div>
           </div>
           ${monthRows}
+          ${penaltySummaryRow}
         `;
         document.getElementById('popup-working-total').innerHTML = `<span class="text-emerald-400">YTD Working Incentive:</span><span class="text-emerald-400">₹${emp.workingIncentive.toLocaleString()}</span>`;
         
@@ -2731,18 +3119,33 @@
       document.getElementById('holiday-prolink-rate').value = s.holidayRates?.prolink || 100;
       document.getElementById('holiday-svg-rate').value = s.holidayRates?.svg || 75;
       document.getElementById('threshold-target').value = s.thresholds?.targetAchieved || 95;
+      document.getElementById('threshold-neartarget').value = s.thresholds?.nearTarget || 86;
       document.getElementById('threshold-atrisk').value = s.thresholds?.atRisk || 80;
       document.getElementById('threshold-termination').value = s.thresholds?.terminationYTD || 70;
+      // Penalty config
+      document.getElementById('penalty-enabled').checked = !!(s.penalty?.enabled);
+      document.getElementById('penalty-neartarget').value = s.penalty?.rates?.nearTarget ?? 0;
+      document.getElementById('penalty-atrisk').value = s.penalty?.rates?.atRisk ?? 5;
+      document.getElementById('penalty-critical').value = s.penalty?.rates?.critical ?? 15;
+      document.getElementById('penalty-termination').value = s.penalty?.rates?.termination ?? 25;
+      document.getElementById('penalty-ceiling').value = s.penalty?.debtCeilingMultiplier ?? 2;
+      document.getElementById('penalty-grace').value = s.penalty?.newJoinerGraceMonths ?? 2;
+      document.getElementById('penalty-clear-on-recovery').checked = s.penalty?.clearDebtOn95Percent !== false;
+      document.getElementById('penalty-wipe-on-termination').checked = s.penalty?.wipeDebtOnTermination !== false;
     }
 
     function saveSchemeFromForm() {
       // Validate thresholds
       const targetThreshold = parseInt(document.getElementById('threshold-target').value) || 95;
+      const nearTargetThreshold = parseInt(document.getElementById('threshold-neartarget').value) || 86;
       const atRiskThreshold = parseInt(document.getElementById('threshold-atrisk').value) || 80;
       const terminationThreshold = parseInt(document.getElementById('threshold-termination').value) || 70;
       
-      if (targetThreshold <= atRiskThreshold) {
-        return alert('Target Achieved % must be greater than At Risk %');
+      if (targetThreshold <= nearTargetThreshold) {
+        return alert('Target Achieved % must be greater than Near Target %');
+      }
+      if (nearTargetThreshold <= atRiskThreshold) {
+        return alert('Near Target % must be greater than At Risk %');
       }
       if (atRiskThreshold <= terminationThreshold) {
         return alert('At Risk % must be greater than YTD Termination %');
@@ -2750,11 +3153,25 @@
       if (targetThreshold > 100 || targetThreshold < 50) {
         return alert('Target Achieved % must be between 50 and 100');
       }
-      if (atRiskThreshold > 100 || atRiskThreshold < 50) {
-        return alert('At Risk % must be between 50 and 100');
-      }
       if (terminationThreshold > 90 || terminationThreshold < 40) {
         return alert('YTD Termination % must be between 40 and 90');
+      }
+      
+      // Penalty config
+      const penaltyEnabled = document.getElementById('penalty-enabled').checked;
+      const pNearTarget = parseInt(document.getElementById('penalty-neartarget').value) || 0;
+      const pAtRisk = parseInt(document.getElementById('penalty-atrisk').value) || 0;
+      const pCritical = parseInt(document.getElementById('penalty-critical').value) || 0;
+      const pTermination = parseInt(document.getElementById('penalty-termination').value) || 0;
+      const pCeiling = parseFloat(document.getElementById('penalty-ceiling').value) || 2;
+      const pGrace = parseInt(document.getElementById('penalty-grace').value) || 0;
+      
+      // Penalty validation
+      if (pNearTarget < 0 || pNearTarget > 100 || pAtRisk < 0 || pAtRisk > 100 || pCritical < 0 || pCritical > 100 || pTermination < 0 || pTermination > 100) {
+        return alert('Penalty rates must be between 0 and 100');
+      }
+      if (penaltyEnabled && pAtRisk > pCritical) {
+        if (!confirm('Warning: At Risk penalty (' + pAtRisk + '%) is higher than Critical penalty (' + pCritical + '%). Usually escalates with severity. Continue anyway?')) return;
       }
       
       const sid = currentSchemeId || 'scheme_' + Date.now();
@@ -2767,14 +3184,22 @@
         target8: { minPoints: parseInt(document.getElementById('t8-min-points').value)||7, targetPoints: parseInt(document.getElementById('t8-target-points').value)||8, exceedPoints: parseInt(document.getElementById('t8-exceed-points').value)||9, minRate: parseInt(document.getElementById('t8-min-rate').value)||7, targetRate: parseInt(document.getElementById('t8-target-rate').value)||8, exceedRate: parseInt(document.getElementById('t8-exceed-rate').value)||9 },
         target10: { minPoints: parseInt(document.getElementById('t10-min-points').value)||9, targetPoints: parseInt(document.getElementById('t10-target-points').value)||10, exceedPoints: parseInt(document.getElementById('t10-exceed-points').value)||11, minRate: parseInt(document.getElementById('t10-min-rate').value)||7, targetRate: parseInt(document.getElementById('t10-target-rate').value)||8, exceedRate: parseInt(document.getElementById('t10-exceed-rate').value)||9 },
         holidayRates: { leadgen: parseInt(document.getElementById('holiday-leadgen-rate').value)||75, prolink: parseInt(document.getElementById('holiday-prolink-rate').value)||100, svg: parseInt(document.getElementById('holiday-svg-rate').value)||75 },
-        thresholds: { targetAchieved: targetThreshold, atRisk: atRiskThreshold, terminationYTD: terminationThreshold }
+        thresholds: { targetAchieved: targetThreshold, atRisk: atRiskThreshold, nearTarget: nearTargetThreshold, terminationYTD: terminationThreshold },
+        penalty: {
+          enabled: penaltyEnabled,
+          rates: { nearTarget: pNearTarget, atRisk: pAtRisk, critical: pCritical, termination: pTermination },
+          debtCeilingMultiplier: pCeiling,
+          newJoinerGraceMonths: pGrace,
+          clearDebtOn95Percent: document.getElementById('penalty-clear-on-recovery').checked,
+          wipeDebtOnTermination: document.getElementById('penalty-wipe-on-termination').checked
+        }
       };
       const idx = incentiveSchemes.findIndex(x => x.id === sid);
       if (idx >= 0) incentiveSchemes[idx] = scheme;
       else incentiveSchemes.push(scheme);
       saveAllData();
       renderSchemeModal();
-      alert('Scheme saved!');
+      alert('Scheme saved!' + (penaltyEnabled ? '\n\n⚠️ Penalty system is ENABLED. YTD reports will now apply penalties.' : ''));
     }
 
     function createNewScheme() {
@@ -2804,6 +3229,14 @@
       document.getElementById('settings-resigned-count').textContent = resignedEmployees.length;
       document.getElementById('settings-manager-count').textContent = managers.length;
       document.getElementById('settings-scheme-count').textContent = incentiveSchemes.length;
+      // Penalty status indicator
+      const pStatus = document.getElementById('settings-penalty-status');
+      if (pStatus) {
+        const sch = incentiveSchemes[0];
+        const enabled = !!(sch?.penalty?.enabled);
+        pStatus.textContent = enabled ? '🔴 ON (Active)' : '⚪ OFF';
+        pStatus.className = enabled ? 'text-red-400 font-bold' : 'text-gray-500';
+      }
     }
 
     function exportSettings() {
@@ -2944,17 +3377,84 @@
         cursorY += 7;
       }
 
+      // === PENALTY SUMMARY SECTION (YTD, if penalty enabled) ===
+      if (isYTD && s.penaltyEnabled && ((s.totalPenaltyDeducted||0) > 0 || (s.totalOutstandingDebt||0) > 0)) {
+        doc.setFillColor(190, 18, 60);
+        doc.rect(14, cursorY, 269, 10, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(11);
+        doc.text('>> PENALTY SUMMARY — Carry-Forward Debt System Active', 18, cursorY + 7);
+        cursorY += 12;
+        
+        // 4 summary boxes
+        const boxW = 67, boxH = 18;
+        const boxes = [
+          { label: 'Total Calculated', val: '₹' + (s.totalPenaltyCalculated||0).toLocaleString(), color: [245, 158, 11] },
+          { label: 'Actually Deducted', val: '₹' + (s.totalPenaltyDeducted||0).toLocaleString(), color: [220, 38, 38] },
+          { label: 'Outstanding Debt', val: '₹' + (s.totalOutstandingDebt||0).toLocaleString(), color: [225, 29, 72] },
+          { label: 'Net Payable', val: '₹' + (s.totalNetPayable||0).toLocaleString(), color: [16, 185, 129] }
+        ];
+        boxes.forEach((b, i) => {
+          const x = 14 + (i * (boxW + 1));
+          doc.setFillColor(...b.color);
+          doc.rect(x, cursorY, boxW, boxH, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(8);
+          doc.text(b.label, x + 3, cursorY + 6);
+          doc.setFontSize(12);
+          doc.text(b.val, x + 3, cursorY + 14);
+        });
+        cursorY += boxH + 4;
+        
+        // Employees with debt
+        const debtEmps = appData.employees.filter(e => (e.penalty?.outstandingDebt||0) > 0);
+        if (debtEmps.length > 0) {
+          doc.setTextColor(190, 18, 60);
+          doc.setFontSize(10);
+          doc.text('Employees with Outstanding Debt (' + debtEmps.length + '):', 14, cursorY + 2);
+          cursorY += 6;
+          doc.autoTable({
+            head: [['#', 'Name', 'ID', 'YTD %', 'Earned W.Inc', 'Penalty Calc', 'Deducted', 'Carry-Forward', 'Net Payable']],
+            body: debtEmps.sort((a,b) => b.penalty.outstandingDebt - a.penalty.outstandingDebt).map((e, i) => [
+              i+1, e.name, e.id, e.achievementPct.toFixed(1) + '%',
+              '₹' + e.workingIncentive, '₹' + e.penalty.totalCalculated, '-₹' + e.penalty.totalDeducted,
+              '🚩 ₹' + e.penalty.outstandingDebt, '₹' + e.netTotal
+            ]),
+            startY: cursorY,
+            styles: { fontSize: 8, textColor: [127, 29, 29] },
+            headStyles: { fillColor: [190, 18, 60], textColor: [255, 255, 255] },
+            alternateRowStyles: { fillColor: [253, 242, 248] }
+          });
+          cursorY = doc.lastAutoTable.finalY + 8;
+        }
+      }
+
       // === MAIN TABLE ===
       const emps = getFilteredSortedEmployees();
       let headers, body;
 
       if (isYTD) {
+        const nearT = thresholds.nearTarget || 86;
+        const getStat = e => {
+          if (e.isManager) return 'MANAGER';
+          if (e.isTerminationRisk) return 'TERMINATE';
+          if (e.achievementPct >= 110) return 'STAR';
+          if (e.achievementPct >= thresholds.targetAchieved) return 'Achieved';
+          if (e.achievementPct >= nearT) return 'Near Target';
+          if (e.achievementPct >= thresholds.atRisk) return 'At Risk';
+          return 'Critical';
+        };
         if (withIncentive) {
-          headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', thresholds.targetAchieved + '%', '🎯', 'Gap', '%', 'Status', 'W.Inc', 'H.Pay', 'Total']];
-          body = emps.map(e => [e.name + (e.isManager?' 👔':''), e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.isManager?'Exempt':e.targetRequired, e.isManager?'—':(e.targetThresholdValue||0), e.isManager?'👔':(e.isTargetAchieved?'✓':'✗'), e.isManager?'—':(e.shortfall > 0 ? -e.shortfall : 0), e.isManager?'Exempt':(e.achievementPct.toFixed(1) + '%'), e.isManager?'MANAGER':e.isTerminationRisk?'TERMINATE':e.achievementPct>=thresholds.targetAchieved?'Achieved':e.achievementPct>=thresholds.atRisk?'At Risk':'Critical', '₹' + e.workingIncentive, '₹' + e.holidayPay, '₹' + e.totalEarnings]);
+          if (s.penaltyEnabled) {
+            headers = [['Name', 'ID', 'T', 'Output', 'Target', '%', 'Status', 'W.Inc', 'Penalty', 'Debt', 'H.Pay', 'Net ₹']];
+            body = emps.map(e => [e.name + (e.isManager?' 👔':'') + (e.penalty?.outstandingDebt>0?' 🚩':''), e.id, e.dailyTarget, e.totalDone, e.isManager?'Exempt':e.targetRequired, e.isManager?'Exempt':(e.achievementPct.toFixed(1)+'%'), getStat(e), '₹'+e.workingIncentive, e.penalty?.totalDeducted>0?'-₹'+e.penalty.totalDeducted:'₹0', e.penalty?.outstandingDebt>0?'🚩₹'+e.penalty.outstandingDebt:(e.penalty?.isTerminationWiped?'wiped':'-'), '₹'+e.holidayPay, '₹'+(e.netTotal!=null?e.netTotal:e.totalEarnings)]);
+          } else {
+            headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', thresholds.targetAchieved + '%', '🎯', 'Gap', '%', 'Status', 'W.Inc', 'H.Pay', 'Total']];
+            body = emps.map(e => [e.name + (e.isManager?' 👔':''), e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.isManager?'Exempt':e.targetRequired, e.isManager?'—':(e.targetThresholdValue||0), e.isManager?'👔':(e.isTargetAchieved?'✓':'✗'), e.isManager?'—':(e.shortfall > 0 ? -e.shortfall : 0), e.isManager?'Exempt':(e.achievementPct.toFixed(1) + '%'), getStat(e), '₹' + e.workingIncentive, '₹' + e.holidayPay, '₹' + e.totalEarnings]);
+          }
         } else {
           headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', thresholds.targetAchieved + '%', '🎯', 'Gap', '%', 'Status']];
-          body = emps.map(e => [e.name + (e.isManager?' 👔':''), e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.isManager?'Exempt':e.targetRequired, e.isManager?'—':(e.targetThresholdValue||0), e.isManager?'👔':(e.isTargetAchieved?'✓':'✗'), e.isManager?'—':(e.shortfall > 0 ? -e.shortfall : 0), e.isManager?'Exempt':(e.achievementPct.toFixed(1) + '%'), e.isManager?'MANAGER':e.isTerminationRisk?'TERMINATE':e.achievementPct>=thresholds.targetAchieved?'Achieved':e.achievementPct>=thresholds.atRisk?'At Risk':'Critical']);
+          body = emps.map(e => [e.name + (e.isManager?' 👔':''), e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.isManager?'Exempt':e.targetRequired, e.isManager?'—':(e.targetThresholdValue||0), e.isManager?'👔':(e.isTargetAchieved?'✓':'✗'), e.isManager?'—':(e.shortfall > 0 ? -e.shortfall : 0), e.isManager?'Exempt':(e.achievementPct.toFixed(1) + '%'), getStat(e)]);
         }
       } else {
         if (withIncentive) {
@@ -3015,14 +3515,42 @@
       const wb = XLSX.utils.book_new();
 
       // === SHEET 1: Main Report ===
+      const penaltyOn = !!s.penaltyEnabled;
+      const nearT = thresholds.nearTarget || 86;
       const mainHead = isYTD
-        ? ['Name', 'ID', 'Target', 'Months Active', 'Output', 'Points', 'Target Req', thresholds.targetAchieved + '% Target', 'Target Achieved', 'Shortfall', 'Achievement %', 'Status', 'YTD Trend', 'Working Incentive', 'Holiday Pay', 'Total Earnings']
+        ? (penaltyOn
+          ? ['Name', 'ID', 'Target', 'Months Active', 'Output', 'Points', 'Target Req', 'Achievement %', 'Status', 'Working Incentive', '⚠️ Penalty', '🚩 Outstanding Debt', 'Holiday Pay', '💰 Net Payable']
+          : ['Name', 'ID', 'Target', 'Months Active', 'Output', 'Points', 'Target Req', thresholds.targetAchieved + '% Target', 'Target Achieved', 'Shortfall', 'Achievement %', 'Status', 'YTD Trend', 'Working Incentive', 'Holiday Pay', 'Total Earnings'])
         : ['Name', 'ID', 'Target', 'Output', 'Points', 'Target Req', thresholds.targetAchieved + '% Target', 'Target Achieved', 'Shortfall', 'Achievement %', 'Working Incentive', 'Holiday Pay', 'Total Earnings'];
       const mainData = [mainHead];
+      const getYTDStatus = e => {
+        if (e.isManager) return '👔 MANAGER';
+        if (e.isTerminationRisk) return '⚫ TERMINATION RISK';
+        if (e.achievementPct >= 110) return '⭐ Star';
+        if (e.achievementPct >= thresholds.targetAchieved) return '✓ Achieved';
+        if (e.achievementPct >= nearT) return '👌 Near Target';
+        if (e.achievementPct >= thresholds.atRisk) return '⚠️ At Risk';
+        return '🔴 Critical';
+      };
       emps.forEach(e => {
         if (isYTD) {
-          const status = e.isManager ? '👔 MANAGER' : e.isTerminationRisk ? 'TERMINATION RISK' : e.achievementPct>=thresholds.targetAchieved ? 'Achieved' : e.achievementPct>=thresholds.atRisk ? 'At Risk' : 'Critical';
-          mainData.push([e.name + (e.isManager?' 👔':''), e.id, e.dailyTarget, e.activeMonthsCount||e.months?.length||0, e.totalDone, e.totalPoints, e.isManager?'Exempt':e.targetRequired, e.isManager?'—':(e.targetThresholdValue||0), e.isManager?'Exempt':(e.isTargetAchieved?'Yes':'No'), e.isManager?'—':e.shortfall, e.isManager?'Exempt':parseFloat(e.achievementPct.toFixed(2)), status, e.trend||'stable', e.workingIncentive, e.holidayPay, e.totalEarnings]);
+          const status = getYTDStatus(e);
+          if (penaltyOn) {
+            const debtDisplay = e.penalty?.isTerminationWiped ? 'wiped' : (e.penalty?.outstandingDebt || 0);
+            mainData.push([
+              e.name + (e.isManager?' 👔':'') + (e.penalty?.outstandingDebt>0?' 🚩':''),
+              e.id, e.dailyTarget, e.activeMonthsCount||e.months?.length||0, e.totalDone, e.totalPoints,
+              e.isManager?'Exempt':e.targetRequired,
+              e.isManager?'Exempt':parseFloat(e.achievementPct.toFixed(2)),
+              status, e.workingIncentive,
+              e.penalty?.totalDeducted || 0,
+              debtDisplay,
+              e.holidayPay,
+              e.netTotal != null ? e.netTotal : e.totalEarnings
+            ]);
+          } else {
+            mainData.push([e.name + (e.isManager?' 👔':''), e.id, e.dailyTarget, e.activeMonthsCount||e.months?.length||0, e.totalDone, e.totalPoints, e.isManager?'Exempt':e.targetRequired, e.isManager?'—':(e.targetThresholdValue||0), e.isManager?'Exempt':(e.isTargetAchieved?'Yes':'No'), e.isManager?'—':e.shortfall, e.isManager?'Exempt':parseFloat(e.achievementPct.toFixed(2)), status, e.trend||'stable', e.workingIncentive, e.holidayPay, e.totalEarnings]);
+          }
         } else {
           mainData.push([e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'Yes':'No', e.shortfall, parseFloat(e.achievementPct.toFixed(2)), e.workingIncentive, e.holidayPay, e.totalEarnings]);
         }
@@ -3038,7 +3566,8 @@
       mainData.push(['Target NOT Achieved', (s.notAchievedCount||0)]);
       if (isYTD) {
         mainData.push(['Star Performers (≥110%)', s.star||0]);
-        mainData.push(['At Risk', s.atRisk||0]);
+        mainData.push(['👌 Near Target (' + nearT + '-' + (thresholds.targetAchieved-1) + '%)', s.nearTarget||0]);
+        mainData.push(['At Risk (' + thresholds.atRisk + '-' + (nearT-1) + '%)', s.atRisk||0]);
         mainData.push(['Critical', s.critical||0]);
         mainData.push(['⚫ TERMINATION RISK (<' + thresholds.terminationYTD + '%)', s.termination||0]);
       }
@@ -3047,13 +3576,27 @@
       mainData.push(['Avg Achievement', s.avgAchievement.toFixed(2) + '%']);
       mainData.push(['Working Incentive', '₹' + s.totalWorkingIncentive]);
       mainData.push(['Holiday Pay', '₹' + s.totalHolidayPay]);
-      mainData.push(['Total Earnings', '₹' + s.totalEarnings]);
+      mainData.push(['Total Earnings (Gross)', '₹' + s.totalEarnings]);
+      if (isYTD && penaltyOn) {
+        mainData.push([]);
+        mainData.push(['⚠️ PENALTY SYSTEM SUMMARY']);
+        mainData.push(['Total Penalty Calculated', '₹' + (s.totalPenaltyCalculated||0)]);
+        mainData.push(['Total Deducted', '₹' + (s.totalPenaltyDeducted||0)]);
+        mainData.push(['🚩 Outstanding Debt', '₹' + (s.totalOutstandingDebt||0)]);
+        mainData.push(['Employees Penalized', s.employeesPenalized||0]);
+        mainData.push(['Employees with Debt', s.employeesWithDebt||0]);
+        mainData.push(['💰 Net Payable (After Penalty)', '₹' + (s.totalNetPayable||0)]);
+      }
 
       const wsMain = XLSX.utils.aoa_to_sheet(mainData);
-      wsMain['!cols'] = (isYTD ? [{wch:22},{wch:10},{wch:8},{wch:12},{wch:10},{wch:10},{wch:12},{wch:14},{wch:14},{wch:10},{wch:14},{wch:18},{wch:10},{wch:16},{wch:14},{wch:14}] : [{wch:22},{wch:10},{wch:8},{wch:10},{wch:10},{wch:12},{wch:14},{wch:14},{wch:10},{wch:14},{wch:16},{wch:14},{wch:14}]);
+      wsMain['!cols'] = isYTD
+        ? (penaltyOn
+          ? [{wch:24},{wch:10},{wch:8},{wch:12},{wch:10},{wch:10},{wch:12},{wch:14},{wch:18},{wch:16},{wch:12},{wch:18},{wch:12},{wch:14}]
+          : [{wch:22},{wch:10},{wch:8},{wch:12},{wch:10},{wch:10},{wch:12},{wch:14},{wch:14},{wch:10},{wch:14},{wch:18},{wch:10},{wch:16},{wch:14},{wch:14}])
+        : [{wch:22},{wch:10},{wch:8},{wch:10},{wch:10},{wch:12},{wch:14},{wch:14},{wch:10},{wch:14},{wch:16},{wch:14},{wch:14}];
       XLSX.utils.book_append_sheet(wb, wsMain, isYTD ? 'YTD Main Report' : 'MTD Main Report');
 
-      // === SHEET 2: Managers (if any) ===
+      // === SHEET: Managers (if any) ===
       if (isYTD && (s.managersCount||0) > 0) {
         const mgrEmps = appData.employees.filter(e => e.isManager);
         const mgrData = [
@@ -3070,7 +3613,62 @@
         XLSX.utils.book_append_sheet(wb, wsMgr, 'Managers');
       }
 
-      // === SHEET 3: Termination Risk (YTD ONLY) ===
+      // === SHEET: Penalty Breakdown (YTD, if penalty enabled) ===
+      if (isYTD && s.penaltyEnabled) {
+        const monthsMeta = appData.monthsMetadata || [];
+        const penaltyHeader1 = ['⚠️ PENALTY BREAKDOWN — Carry-Forward Debt System'];
+        const penaltyHeader2 = ['Report Date:', appData.dateRangeText, '', 'System:', 'ACTIVE', '', 'Total Deducted:', '₹' + (s.totalPenaltyDeducted||0), 'Outstanding Debt:', '₹' + (s.totalOutstandingDebt||0)];
+        const penaltyHeader3 = ['Thresholds:', 'NearTarget ' + (thresholds.nearTarget||86) + '% / AtRisk ' + thresholds.atRisk + '% / Critical ' + thresholds.terminationYTD + '% / Termination <' + thresholds.terminationYTD + '%'];
+        
+        // Build column headers with monthly details
+        const baseCols = ['Name', 'ID', 'YTD %', 'YTD Tier'];
+        const monthCols = monthsMeta.flatMap(m => [m.shortLabel+' Tier', m.shortLabel+' Calc', m.shortLabel+' Deduct', m.shortLabel+' Debt']);
+        const tailCols = ['Total Calculated', 'Total Deducted', 'Outstanding Debt', 'Net Payable', 'Status'];
+        const header = [...baseCols, ...monthCols, ...tailCols];
+        
+        const penData = [penaltyHeader1, penaltyHeader2, penaltyHeader3, [], header];
+        
+        appData.employees.forEach(e => {
+          const p = e.penalty || {};
+          const row = [e.name + (e.isManager?' 👔':''), e.id, e.isManager?'Exempt':parseFloat(e.achievementPct.toFixed(2)), e.isManager?'Manager':e.ytdTier||'-'];
+          monthsMeta.forEach(m => {
+            const md = e.months.find(em => em.month===m.month && em.year===m.year);
+            if (md && md.penalty) {
+              const pp = md.penalty;
+              if (pp.managerSkipped) { row.push('Manager', '-', '-', '-'); }
+              else if (pp.inactiveSkipped) { row.push('-', '-', '-', '-'); }
+              else if (pp.graceSkipped) { row.push('Grace', '0', '0', pp.newDebt); }
+              else { row.push(pp.tier || '-', pp.calculated, pp.deducted, pp.newDebt); }
+            } else {
+              row.push('-', '-', '-', '-');
+            }
+          });
+          let status;
+          if (e.isManager) status = 'MANAGER (exempt)';
+          else if (p.isTerminationWiped) status = 'WIPED (termination)';
+          else if ((p.outstandingDebt||0) > 0) status = 'HAS DEBT';
+          else if ((p.totalDeducted||0) > 0) status = 'Penalty paid';
+          else status = 'No penalty';
+          row.push(p.totalCalculated||0, p.totalDeducted||0, p.isTerminationWiped?'wiped':(p.outstandingDebt||0), e.netTotal!=null?e.netTotal:e.totalEarnings, status);
+          penData.push(row);
+        });
+        
+        // Summary footer
+        penData.push([]);
+        penData.push(['TEAM PENALTY SUMMARY']);
+        penData.push(['Total Calculated', '₹' + (s.totalPenaltyCalculated||0)]);
+        penData.push(['Total Deducted', '₹' + (s.totalPenaltyDeducted||0)]);
+        penData.push(['Outstanding Debt', '₹' + (s.totalOutstandingDebt||0)]);
+        penData.push(['Employees Penalized', s.employeesPenalized||0]);
+        penData.push(['Employees with Debt', s.employeesWithDebt||0]);
+        penData.push(['Net Payable (Team Total)', '₹' + (s.totalNetPayable||0)]);
+        
+        const wsPen = XLSX.utils.aoa_to_sheet(penData);
+        wsPen['!cols'] = [{wch:22},{wch:10},{wch:10},{wch:14}, ...monthsMeta.flatMap(()=>[{wch:12},{wch:10},{wch:10},{wch:10}]), {wch:14},{wch:14},{wch:14},{wch:14},{wch:20}];
+        XLSX.utils.book_append_sheet(wb, wsPen, 'Penalty Breakdown');
+      }
+
+      // === SHEET: Termination Risk (YTD ONLY) ===
       if (isYTD && (s.termination||0) > 0) {
         const termEmps = appData.employees.filter(e => e.isTerminationRisk).sort((a,b) => a.achievementPct - b.achievementPct);
         const termData = [
