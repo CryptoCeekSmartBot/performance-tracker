@@ -606,6 +606,13 @@
                 <div class="flex justify-between"><span>Database:</span><span class="text-emerald-400">● Connected</span></div>
               </div>
             </div>
+            <div class="bg-gradient-to-br from-emerald-900/20 to-cyan-900/20 border border-emerald-700/30 rounded-xl p-4">
+              <h3 class="font-semibold text-emerald-300 mb-2">👥 Bulk Employee + Joiner Import</h3>
+              <p class="text-xs text-gray-400 mb-3">Upload HR Excel with columns: <span class="font-mono text-cyan-300">Emp. ID, Name, D.O.J.</span>. Existing employees skipped automatically. Only PR-prefixed IDs imported (SP = Quality Checkers, ignored).</p>
+              <input type="file" id="bulk-emp-file-input" accept=".xls,.xlsx" class="hidden">
+              <button id="bulk-emp-btn" class="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium">Select HR Excel File</button>
+              <div id="bulk-emp-status" class="hidden mt-3 text-xs space-y-1 bg-slate-800/50 rounded-lg p-2"></div>
+            </div>
             <div class="bg-gradient-to-br from-purple-900/20 to-pink-900/20 border border-purple-700/30 rounded-xl p-4">
               <h3 class="font-semibold text-purple-300 mb-2">🔄 One-Time Migration</h3>
               <p class="text-xs text-gray-400 mb-3">Import your existing settings JSON (from old v4.x app)</p>
@@ -1163,6 +1170,8 @@
       // Settings — Migration tool
       document.getElementById('migration-btn').addEventListener('click', () => document.getElementById('migration-file-input').click());
       document.getElementById('migration-file-input').addEventListener('change', runMigration);
+      document.getElementById('bulk-emp-btn').addEventListener('click', () => document.getElementById('bulk-emp-file-input').click());
+      document.getElementById('bulk-emp-file-input').addEventListener('change', runBulkEmployeeImport);
       document.getElementById('audit-refresh-btn').addEventListener('click', loadAuditLog);
 
       // Auth
@@ -4227,6 +4236,163 @@
         updateSettingsCounts();
       } catch (err) {
         statusEl.innerHTML = `<div class="text-red-400">❌ ${err.message}</div>`;
+        console.error(err);
+      }
+    }
+
+    // ================================================================
+    // BULK EMPLOYEE + JOINER IMPORT (from HR Excel)
+    // Reads Emp. ID + Name + D.O.J. columns. Auto-filters to PR-only.
+    // Upserts employees (creates or updates name) + new_joiners (upsert on PR ID).
+    // Re-running with additional rows = only the new ones get inserted.
+    // ================================================================
+    async function runBulkEmployeeImport(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      e.target.value = '';
+
+      const statusEl = document.getElementById('bulk-emp-status');
+      statusEl.classList.remove('hidden');
+      const log = [];
+      const append = (icon, msg, cls) => {
+        log.push(`<div class="${cls||'text-gray-300'}">${icon} ${msg}</div>`);
+        statusEl.innerHTML = log.join('');
+      };
+      append('⏳', 'Reading Excel…', 'text-cyan-300');
+
+      try {
+        // Read file with SheetJS (already loaded in page)
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+
+        // Use "HR" sheet if present, else first sheet
+        const sheetName = wb.SheetNames.includes('HR') ? 'HR' : wb.SheetNames[0];
+        const sheet = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' });
+        append('📄', `Reading sheet "${sheetName}" (${rows.length} rows)`, 'text-gray-400');
+
+        // Find header row (row containing "Emp. ID", "Name", "D.O.J.")
+        let headerRowIdx = -1;
+        let idCol = -1, nameCol = -1, dojCol = -1;
+        for (let i = 0; i < Math.min(rows.length, 10); i++) {
+          const row = rows[i] || [];
+          for (let c = 0; c < row.length; c++) {
+            const cell = (row[c] || '').toString().trim().toLowerCase();
+            if (cell === 'emp. id' || cell === 'emp.id' || cell === 'empid' || cell === 'employee id' || cell === 'pr id' || cell === 'id') idCol = c;
+            if (cell === 'name') nameCol = c;
+            if (cell === 'd.o.j.' || cell === 'doj' || cell === 'date of joining' || cell === 'joining date') dojCol = c;
+          }
+          if (idCol >= 0 && nameCol >= 0 && dojCol >= 0) { headerRowIdx = i; break; }
+        }
+        if (headerRowIdx < 0) {
+          throw new Error('Could not find header row with "Emp. ID", "Name", "D.O.J." columns');
+        }
+        append('✓', `Header found at row ${headerRowIdx + 1} (Emp.ID=col ${idCol+1}, Name=col ${nameCol+1}, DOJ=col ${dojCol+1})`, 'text-emerald-400');
+
+        // Parse employee rows
+        const toImport = [];
+        const skippedSP = [];
+        const skippedInvalid = [];
+        for (let i = headerRowIdx + 1; i < rows.length; i++) {
+          const row = rows[i] || [];
+          const rawId = (row[idCol] || '').toString().trim().toUpperCase();
+          const rawName = (row[nameCol] || '').toString().trim();
+          const rawDoj = row[dojCol];
+          if (!rawId && !rawName) continue; // blank row
+          if (!rawId || !rawName || !rawDoj) {
+            skippedInvalid.push(`Row ${i+1}: missing data`);
+            continue;
+          }
+          if (rawId.startsWith('SP')) { skippedSP.push(rawId); continue; }
+          if (!/^PR\d+$/.test(rawId)) {
+            // Try normalizing: "PRO045" → "PR045"
+            const cleaned = 'PR' + rawId.replace(/\D/g, '');
+            if (cleaned === 'PR' || !/^PR\d+$/.test(cleaned)) {
+              skippedInvalid.push(`${rawId} (invalid format)`);
+              continue;
+            }
+            // Use cleaned version
+            toImport.push({ id: cleaned, name: rawName, doj: rawDoj });
+          } else {
+            toImport.push({ id: rawId, name: rawName, doj: rawDoj });
+          }
+        }
+        if (skippedSP.length > 0) append('•', `Skipped ${skippedSP.length} SP (Quality Checker) rows: ${skippedSP.join(', ')}`, 'text-gray-400');
+        if (skippedInvalid.length > 0) append('⚠️', `Skipped ${skippedInvalid.length} invalid rows: ${skippedInvalid.slice(0,3).join(', ')}${skippedInvalid.length>3?'…':''}`, 'text-amber-400');
+        if (toImport.length === 0) {
+          append('❌', 'No valid PR employees to import', 'text-red-400');
+          return;
+        }
+
+        // Normalize DOJ to YYYY-MM-DD
+        const normalizeDoj = (d) => {
+          if (!d) return null;
+          if (d instanceof Date) return d.toISOString().slice(0,10);
+          const s = d.toString().trim();
+          // Already ISO?
+          if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+          // Try parsing
+          const parsed = new Date(s);
+          if (!isNaN(parsed)) return parsed.toISOString().slice(0,10);
+          return null;
+        };
+        const normalized = toImport.map(r => ({ ...r, doj: normalizeDoj(r.doj) })).filter(r => r.doj);
+        if (normalized.length < toImport.length) {
+          append('⚠️', `${toImport.length - normalized.length} rows skipped due to bad date format`, 'text-amber-400');
+        }
+
+        append('✓', `Parsed ${normalized.length} valid PR employees`, 'text-emerald-400');
+
+        // Upsert employees master table
+        append('💾', 'Upserting employees…', 'text-cyan-300');
+        const empRows = normalized.map(r => ({ pr_id: r.id, name: r.name, daily_target: 8 }));
+        const { error: empErr } = await sb.from('employees').upsert(empRows, { onConflict: 'pr_id' });
+        if (empErr) throw new Error('Employees upsert failed: ' + empErr.message);
+
+        // Merge into local cache
+        const preExistingIds = new Set(employeesMap.keys());
+        const trulyNew = normalized.filter(r => !preExistingIds.has(r.id));
+        empRows.forEach(r => {
+          if (!employeesMap.has(r.pr_id)) {
+            employeesMap.set(r.pr_id, { name: r.name, daily_target: 8, status: 'active' });
+          } else {
+            // Update name if changed
+            const existing = employeesMap.get(r.pr_id);
+            existing.name = r.name;
+          }
+        });
+        append('✓', `Employees: ${trulyNew.length} new, ${normalized.length - trulyNew.length} updated`, 'text-emerald-400');
+
+        // Upsert new_joiners
+        append('💾', 'Upserting joiners…', 'text-cyan-300');
+        const joinerRows = normalized.map(r => ({ employee_pr_id: r.id, joining_date: r.doj }));
+        const { error: jErr } = await sb.from('new_joiners').upsert(joinerRows, { onConflict: 'employee_pr_id' });
+        if (jErr) throw new Error('Joiners upsert failed: ' + jErr.message);
+
+        // Refresh local joiners cache
+        const existingJoinerMap = new Map(newJoiners.map(j => [j.id, j]));
+        normalized.forEach(r => {
+          if (existingJoinerMap.has(r.id)) {
+            existingJoinerMap.get(r.id).date = r.doj;
+            existingJoinerMap.get(r.id).name = r.name;
+          } else {
+            newJoiners.push({ id: r.id, name: r.name, date: r.doj });
+          }
+        });
+        append('✓', `Joiners: ${trulyNew.length} new, ${normalized.length - trulyNew.length} updated`, 'text-emerald-400');
+
+        await writeAudit('bulk_employee_import', null, null, {
+          source: file.name,
+          imported: normalized.length,
+          new: trulyNew.length,
+          updated: normalized.length - trulyNew.length,
+          skipped_sp: skippedSP.length
+        });
+
+        append('🎉', `Bulk import complete! ${trulyNew.length} new joiners get 2-month grace period automatically.`, 'text-emerald-300 font-bold pt-2 border-t border-slate-700 mt-2');
+        updateSettingsCounts();
+      } catch (err) {
+        append('❌', err.message, 'text-red-400');
         console.error(err);
       }
     }
