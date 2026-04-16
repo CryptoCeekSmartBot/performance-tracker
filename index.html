@@ -1305,13 +1305,38 @@
       return 0;
     }
 
-    function isInNewJoinerGrace(empId, monthIdx, scheme) {
-      const grace = scheme?.penalty?.newJoinerGraceMonths || 2;
+    // === NEW JOINER GRACE PERIOD (real calendar math) ===
+    // Signature changed (was monthIdx-based, now year/month-based).
+    // Returns true if the employee's D.O.J. is within N calendar months of the
+    // target month (year/month). "Within N months" means monthsElapsed < N.
+    //   Example: DOJ = 2025-08-01, target = 2025-08 → 0 months → grace (if N≥1)
+    //            DOJ = 2025-08-01, target = 2025-09 → 1 month  → grace (if N≥2)
+    //            DOJ = 2025-08-01, target = 2025-10 → 2 months → NO grace (N=2)
+    function isInNewJoinerGrace(empId, year, month, scheme) {
+      const grace = scheme?.penalty?.newJoinerGraceMonths ?? 2;
+      if (grace <= 0) return false;
       const joiner = getJoinerInfo(empId);
-      if (!joiner) return false;
-      // monthIdx is 0-based chronological position in YTD range
-      // Grace applies to first N months after joining
-      return monthIdx < grace;
+      if (!joiner || !joiner.date) return false;
+      const dj = new Date(joiner.date);
+      if (isNaN(dj)) return false;
+      const monthsElapsed = (year - dj.getFullYear()) * 12 + (month - (dj.getMonth() + 1));
+      return monthsElapsed >= 0 && monthsElapsed < grace;
+    }
+
+    // === IS EMPLOYEE CURRENTLY A "RECENT" JOINER? (for 🆕 badge display) ===
+    // True only if joined within last `graceMonths` of TODAY's date.
+    // Used so old employees (joined >2 months ago) don't keep showing 🆕 badge.
+    function isRecentJoiner(empId) {
+      const scheme = incentiveSchemes[0] || DEFAULT_SCHEME_TEMPLATE;
+      const grace = scheme?.penalty?.newJoinerGraceMonths ?? 2;
+      if (grace <= 0) return false;
+      const joiner = getJoinerInfo(empId);
+      if (!joiner || !joiner.date) return false;
+      const dj = new Date(joiner.date);
+      if (isNaN(dj)) return false;
+      const today = new Date();
+      const monthsSinceJoining = (today.getFullYear() - dj.getFullYear()) * 12 + (today.getMonth() - dj.getMonth());
+      return monthsSinceJoining >= 0 && monthsSinceJoining < grace;
     }
 
     // Tier meta for UI (color, label, icon)
@@ -2041,7 +2066,8 @@
           retailPending, prolinksPending, svgPending,
           totalPending: retailPending + prolinksPending + svgPending,
           trend, alerts,
-          isNewJoiner: !!joinerInfo, joinerDate: joinerInfo?.date,
+          isNewJoiner: isRecentJoiner(empId), joinerDate: joinerInfo?.date,
+          hasJoinerRecord: !!joinerInfo,
           isResigned: !!resignedInfo, resignedDate: resignedInfo?.date,
           effectiveFromDay: empFromDay, effectiveToDay: empToDay
         });
@@ -2267,7 +2293,8 @@
         const isTargetAchieved = emp.targetRequired > 0 && emp.totalDone >= targetThresholdValue;
         const achievementPct = emp.targetRequired > 0 ? (emp.nonMgrOutput / emp.nonMgrTarget * 100) : 0;
         const isResigned = !!getResignedInfo(emp.id);
-        const isNewJoiner = !!getJoinerInfo(emp.id);
+        const hasJoinerRecord = !!getJoinerInfo(emp.id);
+        const isNewJoiner = isRecentJoiner(emp.id);  // for 🆕 badge display only
         // TERMINATION RISK: Below threshold AND not resigned AND NOT a manager AND has had some target review period
         const isTerminationRisk = !isManager && achievementPct < termThreshold && !isResigned && emp.targetRequired > 0;
         const ytdTier = getPenaltyTier(achievementPct, thresholds);
@@ -2308,8 +2335,8 @@
             if (m.isManagerMonth) { m.penalty.managerSkipped = true; m.penalty.newDebt = carryForward; return; }
             if (!m.isActive || m.target === 0) { m.penalty.inactiveSkipped = true; m.penalty.newDebt = carryForward; return; }
             
-            // New joiner grace period (first N months)
-            if (isNewJoiner && isInNewJoinerGrace(emp.id, idx, ytdScheme)) {
+            // New joiner grace period (based on real calendar months since D.O.J.)
+            if (hasJoinerRecord && isInNewJoinerGrace(emp.id, m.year, m.month, ytdScheme)) {
               m.penalty.graceSkipped = true;
               m.penalty.newDebt = carryForward;
               return;
