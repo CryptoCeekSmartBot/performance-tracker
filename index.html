@@ -92,10 +92,11 @@
         </div>
         
         <!-- Settings Buttons -->
-        <div class="mt-6 grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div class="mt-6 grid grid-cols-2 md:grid-cols-6 gap-3">
           <button id="manage-holidays-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">📅 Holidays</button>
           <button id="manage-joiners-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">🆕 Joiners</button>
           <button id="manage-resigned-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">🚪 Resigned</button>
+          <button id="manage-managers-btn-upload" class="px-4 py-3 bg-purple-900/40 hover:bg-purple-800/50 border border-purple-700/50 rounded-xl text-sm font-medium text-purple-200">👔 Managers</button>
           <button id="manage-scheme-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">💰 Incentive</button>
           <button id="settings-btn-upload" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium">⚙️ Settings</button>
         </div>
@@ -128,6 +129,7 @@
               <button id="manage-holidays-btn" class="px-3 py-2 rounded-lg hover:bg-slate-800 border border-slate-700 text-sm">📅</button>
               <button id="manage-joiners-btn" class="px-3 py-2 rounded-lg hover:bg-slate-800 border border-slate-700 text-sm">🆕</button>
               <button id="manage-resigned-btn" class="px-3 py-2 rounded-lg hover:bg-slate-800 border border-slate-700 text-sm">🚪</button>
+              <button id="manage-managers-btn" class="px-3 py-2 rounded-lg bg-purple-900/40 hover:bg-purple-800/50 border border-purple-700/50 text-sm text-purple-200">👔</button>
               <button id="manage-scheme-btn" class="px-3 py-2 rounded-lg hover:bg-slate-800 border border-slate-700 text-sm">💰</button>
               <button id="settings-btn" class="px-3 py-2 rounded-lg hover:bg-slate-800 border border-slate-700 text-sm">⚙️</button>
               <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-800 border border-slate-700">☀️</button>
@@ -149,6 +151,7 @@
               <option value="atrisk">⚠️ At Risk</option>
               <option value="critical">🔴 Critical</option>
               <option value="termination">⚫ TERMINATION RISK (YTD)</option>
+              <option value="managers">👔 Managers</option>
               <option value="star">⭐ Stars</option>
               <option value="incentive">💰 Earning</option>
               <option value="newjoiners">🆕 Joiners</option>
@@ -316,6 +319,43 @@
       </div>
     </div>
 
+    <!-- ==================== MANAGER MODAL ==================== -->
+    <div id="manager-modal" class="fixed inset-0 z-50 hidden">
+      <div class="modal-overlay absolute inset-0" onclick="closeModal('manager-modal')"></div>
+      <div class="relative z-10 flex items-center justify-center min-h-screen p-4">
+        <div class="bg-slate-900 border border-purple-700/50 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden animate-scale-in">
+          <div class="px-6 py-4 border-b border-purple-700/50 bg-gradient-to-r from-purple-900/40 to-slate-900 flex items-center justify-between">
+            <div><h2 class="text-xl font-bold text-purple-200">👔 Manager Register</h2><p class="text-sm text-purple-300/70">Exempt from target review & termination analysis</p></div>
+            <button onclick="closeModal('manager-modal')" class="p-2 hover:bg-slate-800 rounded-lg">✕</button>
+          </div>
+          <div class="px-6 py-3 bg-purple-900/10 border-b border-purple-700/30">
+            <div class="text-xs text-purple-300/80 flex items-start gap-2">
+              <span>ℹ️</span>
+              <div>
+                <strong>How it works:</strong> Employees marked as managers are exempt from target achievement %, termination risk, and team average calculations from their <strong>Effective Date</strong> onwards. Months <em>before</em> the effective date are still counted normally. Their output & incentive earnings are always calculated.
+              </div>
+            </div>
+          </div>
+          <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/30">
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+              <div class="sm:col-span-4"><label class="block text-xs text-gray-400 mb-1">Name</label><input type="text" id="manager-name" placeholder="Neha Das" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+              <div class="sm:col-span-2"><label class="block text-xs text-gray-400 mb-1">ID</label><input type="text" id="manager-id" placeholder="PR045" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+              <div class="sm:col-span-3"><label class="block text-xs text-gray-400 mb-1">Effective From</label><input type="date" id="manager-date" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+              <div class="sm:col-span-3"><label class="block text-xs text-gray-400 mb-1">Note (optional)</label><input type="text" id="manager-note" placeholder="Team Lead" class="w-full bg-slate-800 border border-slate-600 px-3 py-2 rounded-lg text-sm"></div>
+            </div>
+            <div class="mt-3 flex justify-end">
+              <button id="add-manager-btn" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-medium">➕ Add Manager</button>
+            </div>
+          </div>
+          <div class="px-6 py-4 overflow-y-auto max-h-[40vh]"><div id="manager-list" class="space-y-2"></div><p id="manager-empty" class="text-gray-500 text-sm text-center py-8">No managers registered yet</p></div>
+          <div class="px-6 py-4 border-t border-slate-700 bg-slate-800/50 flex justify-between items-center">
+            <div class="text-sm text-gray-400"><span id="manager-count">0</span> managers</div>
+            <button onclick="closeModal('manager-modal')" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium">✅ Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ==================== SCHEME MODAL ==================== -->
     <div id="scheme-modal" class="fixed inset-0 z-50 hidden">
       <div class="modal-overlay absolute inset-0" onclick="closeModal('scheme-modal')"></div>
@@ -433,6 +473,7 @@
                 <div class="flex justify-between"><span>Holidays:</span><span id="settings-holiday-count" class="text-white">0</span></div>
                 <div class="flex justify-between"><span>Joiners:</span><span id="settings-joiner-count" class="text-white">0</span></div>
                 <div class="flex justify-between"><span>Resigned:</span><span id="settings-resigned-count" class="text-white">0</span></div>
+                <div class="flex justify-between"><span>👔 Managers:</span><span id="settings-manager-count" class="text-purple-300">0</span></div>
                 <div class="flex justify-between"><span>Schemes:</span><span id="settings-scheme-count" class="text-white">0</span></div>
               </div>
             </div>
@@ -520,6 +561,7 @@
     let holidays = [];
     let newJoiners = [];
     let resignedEmployees = [];
+    let managers = [];
     let incentiveSchemes = [];
 
     // ================================================================
@@ -537,6 +579,8 @@
       newJoiners = j ? JSON.parse(j) : [];
       const r = localStorage.getItem('pt_resigned');
       resignedEmployees = r ? JSON.parse(r) : [];
+      const m = localStorage.getItem('pt_managers');
+      managers = m ? JSON.parse(m) : [];
       const s = localStorage.getItem('pt_schemes');
       incentiveSchemes = s ? JSON.parse(s) : [{ ...DEFAULT_SCHEME }];
       if (incentiveSchemes.length > 0) currentSchemeId = incentiveSchemes[0].id;
@@ -547,6 +591,7 @@
       localStorage.setItem('pt_holidays', JSON.stringify(holidays));
       localStorage.setItem('pt_joiners', JSON.stringify(newJoiners));
       localStorage.setItem('pt_resigned', JSON.stringify(resignedEmployees));
+      localStorage.setItem('pt_managers', JSON.stringify(managers));
       localStorage.setItem('pt_schemes', JSON.stringify(incentiveSchemes));
     }
 
@@ -597,6 +642,7 @@
       document.getElementById('manage-holidays-btn-upload').addEventListener('click', () => openModal('holiday-modal'));
       document.getElementById('manage-joiners-btn-upload').addEventListener('click', () => openModal('joiner-modal'));
       document.getElementById('manage-resigned-btn-upload').addEventListener('click', () => openModal('resigned-modal'));
+      document.getElementById('manage-managers-btn-upload').addEventListener('click', () => openModal('manager-modal'));
       document.getElementById('manage-scheme-btn-upload').addEventListener('click', () => openModal('scheme-modal'));
       document.getElementById('settings-btn-upload').addEventListener('click', () => openModal('settings-modal'));
       
@@ -604,6 +650,7 @@
       document.getElementById('manage-holidays-btn').addEventListener('click', () => openModal('holiday-modal'));
       document.getElementById('manage-joiners-btn').addEventListener('click', () => openModal('joiner-modal'));
       document.getElementById('manage-resigned-btn').addEventListener('click', () => openModal('resigned-modal'));
+      document.getElementById('manage-managers-btn').addEventListener('click', () => openModal('manager-modal'));
       document.getElementById('manage-scheme-btn').addEventListener('click', () => openModal('scheme-modal'));
       document.getElementById('settings-btn').addEventListener('click', () => openModal('settings-modal'));
       
@@ -613,9 +660,10 @@
       document.getElementById('clear-all-holidays-btn').addEventListener('click', clearAllHolidays);
       document.getElementById('bulk-import-btn').addEventListener('click', bulkImportHolidays);
       
-      // Joiner/Resigned
+      // Joiner/Resigned/Manager
       document.getElementById('add-joiner-btn').addEventListener('click', addJoiner);
       document.getElementById('add-resigned-btn').addEventListener('click', addResigned);
+      document.getElementById('add-manager-btn').addEventListener('click', addManager);
       
       // Scheme modal
       document.getElementById('scheme-selector').addEventListener('change', loadSchemeToForm);
@@ -679,6 +727,30 @@
 
     function getResignedInfo(id) {
       return resignedEmployees.find(r => r.id.toUpperCase() === id.toUpperCase());
+    }
+
+    // === MANAGER HELPERS ===
+    function getManagerInfo(id) {
+      return managers.find(m => m.id.toUpperCase() === id.toUpperCase());
+    }
+
+    // Check if employee was a manager during a specific month (effective date ≤ end of that month)
+    function wasManagerInMonth(empId, year, month) {
+      const mgr = getManagerInfo(empId);
+      if (!mgr) return false;
+      const effDate = new Date(mgr.date);
+      // Manager if their effective date falls on or before the last day of the target month
+      const lastOfMonth = new Date(year, month, 0); // month is 1-indexed here
+      return effDate <= lastOfMonth;
+    }
+
+    // Check if employee was a manager on a specific day
+    function wasManagerOnDay(empId, year, month, day) {
+      const mgr = getManagerInfo(empId);
+      if (!mgr) return false;
+      const effDate = new Date(mgr.date);
+      const checkDate = new Date(year, month - 1, day);
+      return checkDate >= effDate;
     }
 
     function getEffectiveDateRange(empId, year, month, defaultFrom, defaultTo) {
@@ -749,6 +821,7 @@
       if (id === 'holiday-modal') renderHolidayList();
       if (id === 'joiner-modal') renderJoinerList();
       if (id === 'resigned-modal') renderResignedList();
+      if (id === 'manager-modal') renderManagerList();
       if (id === 'scheme-modal') renderSchemeModal();
       if (id === 'settings-modal') updateSettingsCounts();
     }
@@ -1037,6 +1110,8 @@
           targetRequired, shortfall, achievementPct, workingDays,
           targetThresholdValue, isTargetAchieved,
           isTerminationRisk: false,
+          isManager: wasManagerInMonth(empId, currentYear, currentMonth),
+          managerInfo: getManagerInfo(empId),
           workingIncentive: totalWorkingIncentive, holidayPay: totalHolidayPay,
           totalEarnings: totalWorkingIncentive + totalHolidayPay,
           workingDayBreakdown, holidayBreakdown,
@@ -1164,6 +1239,7 @@
 
           const monthTarget = dailyTarget * effectiveWorkingDays;
           const monthPct = monthTarget > 0 ? (monthOutput / monthTarget * 100) : 0;
+          const isManagerMonth = wasManagerInMonth(empId, currentYear, currentMonth);
 
           if (!empMap.has(empId)) {
             empMap.set(empId, {
@@ -1172,14 +1248,16 @@
               totalDone: 0, totalPoints: 0, targetRequired: 0, workingDays: 0,
               totalRetail: 0, totalProlinks: 0, totalSvg: 0,
               workingIncentive: 0, holidayPay: 0, months: [],
-              activeMonthsCount: 0
+              activeMonthsCount: 0,
+              // Non-manager accumulators (for achievement calc)
+              nonMgrOutput: 0, nonMgrTarget: 0, nonMgrMonthsCount: 0
             });
           }
 
           const emp = empMap.get(empId);
+          // Always count output & earnings (managers still do work)
           emp.totalDone += monthOutput;
           emp.totalPoints += monthPoints;
-          emp.targetRequired += monthTarget;
           emp.workingDays += effectiveWorkingDays;
           emp.totalRetail += monthRetail;
           emp.totalProlinks += monthProlinks;
@@ -1187,6 +1265,15 @@
           emp.workingIncentive += monthWI;
           emp.holidayPay += monthHP;
           if (empActiveThisMonth && effectiveWorkingDays > 0) emp.activeMonthsCount++;
+          
+          // Target & achievement: ONLY accumulate from non-manager months
+          if (!isManagerMonth) {
+            emp.targetRequired += monthTarget;
+            emp.nonMgrOutput += monthOutput;
+            emp.nonMgrTarget += monthTarget;
+            if (empActiveThisMonth && effectiveWorkingDays > 0) emp.nonMgrMonthsCount++;
+          }
+          
           emp.months.push({
             month: currentMonth, year: currentYear,
             label: `${getMonthName(currentMonth)} ${currentYear}`,
@@ -1197,7 +1284,8 @@
             workingDays: effectiveWorkingDays,
             achievementPct: monthPct,
             isActive: empActiveThisMonth,
-            isProRated: empActiveThisMonth && (effFromDay > 1 || effToDay < currentDay)
+            isProRated: empActiveThisMonth && (effFromDay > 1 || effToDay < currentDay),
+            isManagerMonth: isManagerMonth
           });
         }
       });
@@ -1206,19 +1294,25 @@
       const thresholds = ytdScheme.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
       
       const employees = Array.from(empMap.values()).map(emp => {
+        const mgrInfo = getManagerInfo(emp.id);
+        const isManager = !!mgrInfo;
+        
+        // Achievement calculated from non-manager months only
         const targetThresholdValue = Math.floor(emp.targetRequired * thresholds.targetAchieved / 100);
-        const isTargetAchieved = emp.totalDone >= targetThresholdValue;
-        const achievementPct = emp.targetRequired > 0 ? (emp.totalDone / emp.targetRequired * 100) : 0;
+        const isTargetAchieved = emp.targetRequired > 0 && emp.totalDone >= targetThresholdValue;
+        const achievementPct = emp.targetRequired > 0 ? (emp.nonMgrOutput / emp.nonMgrTarget * 100) : 0;
         const isResigned = !!getResignedInfo(emp.id);
         const isNewJoiner = !!getJoinerInfo(emp.id);
-        // TERMINATION RISK: Below configured threshold AND not already resigned
-        const isTerminationRisk = achievementPct < thresholds.terminationYTD && !isResigned && emp.targetRequired > 0;
-        // Calc trend from months (compare first half vs second half)
+        // TERMINATION RISK: Below threshold AND not resigned AND NOT a manager AND has had some target review period
+        const isTerminationRisk = !isManager && achievementPct < thresholds.terminationYTD && !isResigned && emp.targetRequired > 0;
+        
+        // Calc trend from non-manager active months
         let ytdTrend = 'stable';
-        if (emp.months.length >= 2) {
-          const half = Math.floor(emp.months.length / 2);
-          const firstHalf = emp.months.slice(0, half).filter(m=>m.isActive);
-          const secondHalf = emp.months.slice(-half).filter(m=>m.isActive);
+        const nonMgrMonths = emp.months.filter(m => !m.isManagerMonth && m.isActive && m.target > 0);
+        if (nonMgrMonths.length >= 2) {
+          const half = Math.floor(nonMgrMonths.length / 2);
+          const firstHalf = nonMgrMonths.slice(0, half);
+          const secondHalf = nonMgrMonths.slice(-half);
           if (firstHalf.length && secondHalf.length) {
             const avgFirst = firstHalf.reduce((s,m)=>s+m.achievementPct,0)/firstHalf.length;
             const avgSecond = secondHalf.reduce((s,m)=>s+m.achievementPct,0)/secondHalf.length;
@@ -1228,11 +1322,13 @@
         }
         return {
           ...emp,
-          shortfall: Math.max(0, emp.targetRequired - emp.totalDone),
+          shortfall: Math.max(0, emp.targetRequired - emp.nonMgrOutput),
           achievementPct,
           targetThresholdValue,
           isTargetAchieved,
           isTerminationRisk,
+          isManager,
+          managerInfo: mgrInfo,
           totalEarnings: emp.workingIncentive + emp.holidayPay,
           trend: ytdTrend, alerts: [],
           isNewJoiner,
@@ -1240,7 +1336,9 @@
         };
       });
 
-      const sorted = [...employees].sort((a, b) => b.achievementPct - a.achievementPct);
+      // Exclude managers from ranking (they're leadership, not competing)
+      const nonManagers = employees.filter(e => !e.isManager);
+      const sorted = [...nonManagers].sort((a, b) => b.achievementPct - a.achievementPct);
       const totalWD = employees.reduce((s, e) => s + e.workingDays, 0);
       const avgWD = employees.length > 0 ? Math.round(totalWD / employees.length) : 0;
 
@@ -1294,18 +1392,26 @@
       if (total === 0) return {};
       const thresholds = scheme?.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
       const termPct = thresholds.terminationYTD || 70;
+      
+      // Separate managers from reviewable employees
+      const managerEmps = employees.filter(e => e.isManager);
+      const reviewable = employees.filter(e => !e.isManager);
+      const reviewableCount = reviewable.length;
+      
       return {
         total,
-        avgAchievement: employees.reduce((a, b) => a + b.achievementPct, 0) / total,
-        star: employees.filter(e => e.achievementPct >= 110).length,
-        onTrack: employees.filter(e => e.achievementPct >= thresholds.targetAchieved).length,
-        atRisk: employees.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < thresholds.targetAchieved).length,
-        critical: employees.filter(e => e.achievementPct >= termPct && e.achievementPct < thresholds.atRisk).length,
+        reviewableCount,
+        managersCount: managerEmps.length,
+        avgAchievement: reviewableCount > 0 ? reviewable.reduce((a, b) => a + b.achievementPct, 0) / reviewableCount : 0,
+        star: reviewable.filter(e => e.achievementPct >= 110).length,
+        onTrack: reviewable.filter(e => e.achievementPct >= thresholds.targetAchieved).length,
+        atRisk: reviewable.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < thresholds.targetAchieved).length,
+        critical: reviewable.filter(e => e.achievementPct >= termPct && e.achievementPct < thresholds.atRisk).length,
         termination: employees.filter(e => e.isTerminationRisk).length,
-        notAchievedCount: employees.filter(e => !e.isTargetAchieved).length,
-        targetAchievedCount: employees.filter(e => e.isTargetAchieved).length,
+        notAchievedCount: reviewable.filter(e => !e.isTargetAchieved).length,
+        targetAchievedCount: reviewable.filter(e => e.isTargetAchieved).length,
         totalOutput: employees.reduce((a, b) => a + b.totalDone, 0),
-        totalTarget: employees.reduce((a, b) => a + b.targetRequired, 0),
+        totalTarget: reviewable.reduce((a, b) => a + b.targetRequired, 0),
         totalPoints: employees.reduce((a, b) => a + b.totalPoints, 0),
         totalWorkingIncentive: employees.reduce((a, b) => a + b.workingIncentive, 0),
         totalHolidayPay: employees.reduce((a, b) => a + b.holidayPay, 0),
@@ -1454,13 +1560,14 @@
       const thresholds = appData.scheme?.thresholds || { targetAchieved: 95, atRisk: 80 };
       if (searchTerm) list = list.filter(e => e.fullName.toLowerCase().includes(searchTerm.toLowerCase()));
       switch(filterStatus) {
-        case 'targetachieved': list = list.filter(e => e.isTargetAchieved); break;
-        case 'notachieved': list = list.filter(e => !e.isTargetAchieved); break;
-        case 'ontrack': list = list.filter(e => e.achievementPct >= thresholds.targetAchieved); break;
-        case 'atrisk': list = list.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < thresholds.targetAchieved); break;
-        case 'critical': list = list.filter(e => e.achievementPct < thresholds.atRisk); break;
+        case 'targetachieved': list = list.filter(e => e.isTargetAchieved && !e.isManager); break;
+        case 'notachieved': list = list.filter(e => !e.isTargetAchieved && !e.isManager); break;
+        case 'ontrack': list = list.filter(e => e.achievementPct >= thresholds.targetAchieved && !e.isManager); break;
+        case 'atrisk': list = list.filter(e => e.achievementPct >= thresholds.atRisk && e.achievementPct < thresholds.targetAchieved && !e.isManager); break;
+        case 'critical': list = list.filter(e => e.achievementPct < thresholds.atRisk && !e.isManager); break;
         case 'termination': list = list.filter(e => e.isTerminationRisk); break;
-        case 'star': list = list.filter(e => e.achievementPct >= 110); break;
+        case 'managers': list = list.filter(e => e.isManager); break;
+        case 'star': list = list.filter(e => e.achievementPct >= 110 && !e.isManager); break;
         case 'incentive': list = list.filter(e => e.workingIncentive > 0); break;
         case 'newjoiners': list = list.filter(e => e.isNewJoiner); break;
         case 'resigned': list = list.filter(e => e.isResigned); break;
@@ -1518,9 +1625,10 @@
         </tr>`;
         document.getElementById('table-body').innerHTML = employees.map((e, idx) => {
           const termPct = thresholds.terminationYTD || 70;
-          // Per-month colored dots
+          // Per-month colored dots (manager months = purple)
           const monthDots = (e.months||[]).map(m => {
             if (!m.isActive) return '<span class="inline-block w-2 h-2 rounded-full bg-slate-700" title="Not active"></span>';
+            if (m.isManagerMonth) return `<span class="inline-block w-2 h-2 rounded-full bg-purple-500" title="${m.shortLabel}: 👔 Manager (exempt)"></span>`;
             let color = '#7f1d1d';
             if (m.achievementPct >= 110) color = '#10b981';
             else if (m.achievementPct >= thresholds.targetAchieved) color = '#059669';
@@ -1529,7 +1637,9 @@
             return `<span class="inline-block w-2 h-2 rounded-full" style="background:${color}" title="${m.shortLabel}: ${m.achievementPct.toFixed(1)}%"></span>`;
           }).join(' ');
           
-          const statusBadge = e.isTerminationRisk
+          const statusBadge = e.isManager
+            ? '<span class="px-2 py-0.5 bg-purple-900/80 border border-purple-500 rounded text-[10px] text-purple-200 font-bold inline-block">👔 MANAGER</span>'
+            : e.isTerminationRisk
             ? '<span class="px-2 py-0.5 bg-red-900/80 border border-red-600 rounded text-[10px] text-red-200 font-bold animate-pulse-red inline-block">⚫ TERMINATE</span>'
             : e.achievementPct >= thresholds.targetAchieved
             ? '<span class="px-2 py-0.5 bg-emerald-900/60 rounded text-[10px] text-emerald-300">✓ Achieved</span>'
@@ -1537,20 +1647,31 @@
             ? '<span class="px-2 py-0.5 bg-amber-900/60 rounded text-[10px] text-amber-300">⚠️ At Risk</span>'
             : '<span class="px-2 py-0.5 bg-red-900/60 rounded text-[10px] text-red-300">🔴 Critical</span>';
           
-          const rowClass = e.isTerminationRisk ? 'termination-row' : (idx%2?'bg-slate-900/50':'');
+          const rowClass = e.isManager ? 'bg-purple-950/20' : e.isTerminationRisk ? 'termination-row' : (idx%2?'bg-slate-900/50':'');
+          
+          // Display achievement values — managers show exempt
+          const achievedCell = e.isManager 
+            ? '<div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-xs font-bold text-purple-300 bg-purple-900/60">👔</div>'
+            : `<div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-xs font-bold text-white ${e.isTargetAchieved?'cell-green':'cell-red'}">${e.isTargetAchieved?'✓':'✗'}</div>`;
+          const gapCell = e.isManager ? '<span class="text-purple-400 text-xs">—</span>' : (e.shortfall>0?'-'+e.shortfall:'0');
+          const pctCell = e.isManager 
+            ? '<span class="font-bold text-sm text-purple-400">Exempt</span>'
+            : `<span class="font-bold text-base ${e.achievementPct>=thresholds.targetAchieved?'text-emerald-400':e.achievementPct>=thresholds.atRisk?'text-amber-400':e.achievementPct>=termPct?'text-red-400':'text-red-600'}">${e.achievementPct.toFixed(0)}%</span>`;
+          const targetReqCell = e.isManager ? '<span class="text-purple-400">—</span>' : e.targetRequired;
+          const thresholdValCell = e.isManager ? '<span class="text-purple-400">—</span>' : (e.targetThresholdValue||0);
           
           return `<tr class="hover:bg-slate-800 cursor-pointer ${rowClass}" onclick="showEmployeePopup('${e.id}')">
-            <td class="px-4 py-2 border-b border-slate-700"><div class="font-medium">${e.name}${e.isTerminationRisk?' ⚫':''}</div><div class="text-xs text-gray-500 flex items-center gap-1">(${e.id})${e.isNewJoiner?'<span class="ml-1 px-1 bg-blue-600 rounded text-[10px]">🆕</span>':''}${e.isResigned?'<span class="ml-1 px-1 bg-orange-600 rounded text-[10px]">🚪</span>':''} <span class="ml-1 flex gap-0.5">${monthDots}</span></div></td>
+            <td class="px-4 py-2 border-b border-slate-700"><div class="font-medium ${e.isManager?'text-purple-200':''}">${e.name}${e.isManager?' 👔':''}${e.isTerminationRisk?' ⚫':''}</div><div class="text-xs text-gray-500 flex items-center gap-1">(${e.id})${e.isNewJoiner?'<span class="ml-1 px-1 bg-blue-600 rounded text-[10px]">🆕</span>':''}${e.isResigned?'<span class="ml-1 px-1 bg-orange-600 rounded text-[10px]">🚪</span>':''} <span class="ml-1 flex gap-0.5">${monthDots}</span></div></td>
             <td class="px-3 py-2 text-center border-b border-slate-700 font-bold">${e.dailyTarget}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700">${e.months?.length||0}</td>
-            <td class="px-3 py-2 text-center border-b border-slate-700 text-lg ${e.trend==='up'?'text-emerald-400':e.trend==='down'?'text-red-400':'text-gray-400'}">${e.trend==='up'?'↑':e.trend==='down'?'↓':'→'}</td>
+            <td class="px-3 py-2 text-center border-b border-slate-700 text-lg ${e.trend==='up'?'text-emerald-400':e.trend==='down'?'text-red-400':'text-gray-400'}">${e.isManager?'—':(e.trend==='up'?'↑':e.trend==='down'?'↓':'→')}</td>
             <td class="px-3 py-2 text-center font-bold border-b border-slate-700 text-cyan-400">${e.totalDone}</td>
             <td class="px-3 py-2 text-center font-bold border-b border-slate-700 text-purple-400">${e.totalPoints}</td>
-            <td class="px-3 py-2 text-center border-b border-slate-700">${e.targetRequired}</td>
-            <td class="px-3 py-2 text-center border-b border-slate-700 text-amber-400 font-medium">${e.targetThresholdValue||0}</td>
-            <td class="px-3 py-2 text-center border-b border-slate-700"><div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-xs font-bold text-white ${e.isTargetAchieved?'cell-green':'cell-red'}">${e.isTargetAchieved?'✓':'✗'}</div></td>
-            <td class="px-3 py-2 text-center font-bold border-b border-slate-700 ${e.shortfall>0?'text-red-400':'text-emerald-400'}">${e.shortfall>0?'-'+e.shortfall:'0'}</td>
-            <td class="px-3 py-2 text-center border-b border-slate-700"><span class="font-bold text-base ${e.achievementPct>=thresholds.targetAchieved?'text-emerald-400':e.achievementPct>=thresholds.atRisk?'text-amber-400':e.achievementPct>=termPct?'text-red-400':'text-red-600'}">${e.achievementPct.toFixed(0)}%</span></td>
+            <td class="px-3 py-2 text-center border-b border-slate-700">${targetReqCell}</td>
+            <td class="px-3 py-2 text-center border-b border-slate-700 text-amber-400 font-medium">${thresholdValCell}</td>
+            <td class="px-3 py-2 text-center border-b border-slate-700">${achievedCell}</td>
+            <td class="px-3 py-2 text-center font-bold border-b border-slate-700 ${e.isManager?'text-purple-400':e.shortfall>0?'text-red-400':'text-emerald-400'}">${gapCell}</td>
+            <td class="px-3 py-2 text-center border-b border-slate-700">${pctCell}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700">${statusBadge}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700 text-emerald-400 font-medium">₹${e.workingIncentive}</td>
             <td class="px-3 py-2 text-center border-b border-slate-700 text-purple-400 font-medium">₹${e.holidayPay}</td>
@@ -1600,11 +1721,11 @@
             }
           }
 
-          return `<tr class="hover:bg-slate-800 cursor-pointer ${idx%2?'bg-slate-900/50':''}" onclick="showEmployeePopup('${emp.id}')">
+          return `<tr class="hover:bg-slate-800 cursor-pointer ${emp.isManager?'bg-purple-950/20':(idx%2?'bg-slate-900/50':'')}" onclick="showEmployeePopup('${emp.id}')">
             <td class="px-4 py-1 border-b border-slate-700">
               <div class="flex items-center gap-1"><div class="min-w-0">
-                <div class="font-medium text-sm truncate">${emp.name}</div>
-                <div class="text-xs text-gray-500 flex items-center gap-1">(${emp.id})${emp.isNewJoiner?`<span class="px-1 bg-blue-600 rounded text-[10px]">🆕${emp.joinerDate?.split('-')[2]||''}</span>`:''}${emp.isResigned?`<span class="px-1 bg-orange-600 rounded text-[10px]">🚪${emp.resignedDate?.split('-')[2]||''}</span>`:''}</div>
+                <div class="font-medium text-sm truncate ${emp.isManager?'text-purple-200':''}">${emp.name}${emp.isManager?' 👔':''}</div>
+                <div class="text-xs text-gray-500 flex items-center gap-1">(${emp.id})${emp.isManager?'<span class="px-1 bg-purple-600/80 rounded text-[10px] text-white">👔 MGR</span>':''}${emp.isNewJoiner?`<span class="px-1 bg-blue-600 rounded text-[10px]">🆕${emp.joinerDate?.split('-')[2]||''}</span>`:''}${emp.isResigned?`<span class="px-1 bg-orange-600 rounded text-[10px]">🚪${emp.resignedDate?.split('-')[2]||''}</span>`:''}</div>
               </div>${emp.alerts.map(a=>`<span title="${a.message}">${a.icon}</span>`).join('')}</div>
             </td>
             <td class="px-1 py-1 text-center border-b border-slate-700 font-bold text-xs">${emp.dailyTarget}</td>
@@ -1612,11 +1733,11 @@
             ${cells.join('')}
             <td class="px-2 py-1 text-center font-bold border-b border-slate-700 text-cyan-400 text-xs">${emp.totalDone}</td>
             <td class="px-2 py-1 text-center font-bold border-b border-slate-700 text-purple-400 text-xs">${emp.totalPoints}</td>
-            <td class="px-2 py-1 text-center border-b border-slate-700 text-xs">${emp.targetRequired}</td>
-            <td class="px-2 py-1 text-center border-b border-slate-700 text-amber-400 text-xs font-medium">${emp.targetThresholdValue||0}</td>
-            <td class="px-2 py-1 text-center border-b border-slate-700"><div class="w-6 h-6 mx-auto rounded flex items-center justify-center text-[10px] font-bold text-white ${emp.isTargetAchieved?'cell-green':'cell-red'}">${emp.isTargetAchieved?'✓':'✗'}</div></td>
-            <td class="px-2 py-1 text-center font-bold border-b border-slate-700 text-xs ${emp.shortfall>0?'text-red-400':'text-emerald-400'}">${emp.shortfall>0?'-'+emp.shortfall:'0'}</td>
-            <td class="px-2 py-1 text-center border-b border-slate-700"><span class="font-bold text-xs ${emp.achievementPct>=thresholds.targetAchieved?'text-emerald-400':emp.achievementPct>=thresholds.atRisk?'text-amber-400':'text-red-400'}">${emp.achievementPct.toFixed(0)}%</span></td>
+            <td class="px-2 py-1 text-center border-b border-slate-700 text-xs">${emp.isManager?'<span class="text-purple-400">—</span>':emp.targetRequired}</td>
+            <td class="px-2 py-1 text-center border-b border-slate-700 text-amber-400 text-xs font-medium">${emp.isManager?'<span class="text-purple-400">—</span>':(emp.targetThresholdValue||0)}</td>
+            <td class="px-2 py-1 text-center border-b border-slate-700">${emp.isManager?'<div class="w-6 h-6 mx-auto rounded flex items-center justify-center text-[10px] font-bold text-purple-300 bg-purple-900/60">👔</div>':`<div class="w-6 h-6 mx-auto rounded flex items-center justify-center text-[10px] font-bold text-white ${emp.isTargetAchieved?'cell-green':'cell-red'}">${emp.isTargetAchieved?'✓':'✗'}</div>`}</td>
+            <td class="px-2 py-1 text-center font-bold border-b border-slate-700 text-xs ${emp.isManager?'text-purple-400':emp.shortfall>0?'text-red-400':'text-emerald-400'}">${emp.isManager?'—':(emp.shortfall>0?'-'+emp.shortfall:'0')}</td>
+            <td class="px-2 py-1 text-center border-b border-slate-700">${emp.isManager?'<span class="font-bold text-xs text-purple-400">Exempt</span>':`<span class="font-bold text-xs ${emp.achievementPct>=thresholds.targetAchieved?'text-emerald-400':emp.achievementPct>=thresholds.atRisk?'text-amber-400':'text-red-400'}">${emp.achievementPct.toFixed(0)}%</span>`}</td>
             <td class="px-2 py-1 text-center border-b border-slate-700 text-amber-400 font-bold text-xs">₹${emp.totalEarnings}</td>
           </tr>`;
         }).join('');
@@ -1709,6 +1830,7 @@
             <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
               <div class="text-xs uppercase text-gray-500 mb-1">👥 Employees</div>
               <div class="text-2xl font-bold text-white">${s.total}</div>
+              ${s.managersCount > 0 ? `<div class="text-[10px] text-purple-400 mt-0.5">${s.reviewableCount} reviewed • ${s.managersCount} 👔</div>` : ''}
             </div>
             <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
               <div class="text-xs uppercase text-cyan-400 mb-1">📅 Months</div>
@@ -1725,10 +1847,11 @@
             <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-3">
               <div class="text-xs uppercase ${s.avgAchievement>=targetPct?'text-emerald-400':s.avgAchievement>=s.thresholds.atRisk?'text-amber-400':'text-red-400'} mb-1">📈 Avg Achieved</div>
               <div class="text-2xl font-bold ${s.avgAchievement>=targetPct?'text-emerald-400':s.avgAchievement>=s.thresholds.atRisk?'text-amber-400':'text-red-400'}">${(s.avgAchievement||0).toFixed(1)}%</div>
+              ${s.managersCount > 0 ? `<div class="text-[10px] text-gray-500 mt-0.5">excl. managers</div>` : ''}
             </div>
             <div class="bg-gradient-to-br from-emerald-900/40 to-emerald-800/20 border border-emerald-700/50 rounded-xl p-3">
               <div class="text-xs uppercase text-emerald-400 mb-1">✅ Achieved ${targetPct}%</div>
-              <div class="text-2xl font-bold text-emerald-400">${s.targetAchievedCount||0}<span class="text-sm text-gray-400">/${s.total}</span></div>
+              <div class="text-2xl font-bold text-emerald-400">${s.targetAchievedCount||0}<span class="text-sm text-gray-400">/${s.reviewableCount||s.total}</span></div>
             </div>
             <div class="bg-gradient-to-br from-amber-900/40 to-orange-800/20 border border-amber-700/50 rounded-xl p-3">
               <div class="text-xs uppercase text-amber-400 mb-1">❌ Not Achieved</div>
@@ -1868,12 +1991,12 @@
       
       const donutChart = `
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <div class="font-semibold mb-3 flex items-center gap-2"><span>🎯</span><span>Achievement Distribution</span></div>
+          <div class="font-semibold mb-3 flex items-center gap-2"><span>🎯</span><span>Achievement Distribution</span>${s.managersCount>0?`<span class="ml-auto text-[10px] text-purple-400">👔 ${s.managersCount} mgrs excluded</span>`:''}</div>
           <div class="flex items-center gap-4">
             <svg viewBox="0 0 120 120" class="w-32 h-32 shrink-0">
               ${donutArcs}
-              <text x="60" y="58" text-anchor="middle" fill="#f3f4f6" font-size="16" font-weight="bold">${s.total}</text>
-              <text x="60" y="72" text-anchor="middle" fill="#9ca3af" font-size="7">employees</text>
+              <text x="60" y="58" text-anchor="middle" fill="#f3f4f6" font-size="16" font-weight="bold">${s.reviewableCount||s.total}</text>
+              <text x="60" y="72" text-anchor="middle" fill="#9ca3af" font-size="7">reviewed</text>
             </svg>
             <div class="flex-1 space-y-1.5 text-xs min-w-0">
               ${buckets.map(b => `
@@ -1890,9 +2013,9 @@
         </div>
       `;
       
-      // === CHART 2: Monthly Team Trend Line Chart ===
+      // === CHART 2: Monthly Team Trend Line Chart (excludes manager months) ===
       const monthlyAvg = months.map(m => {
-        const allEmpsInMonth = appData.employees.map(e => e.months.find(em => em.month===m.month && em.year===m.year)).filter(x=>x&&x.isActive&&x.target>0);
+        const allEmpsInMonth = appData.employees.map(e => e.months.find(em => em.month===m.month && em.year===m.year)).filter(x=>x&&x.isActive&&x.target>0&&!x.isManagerMonth);
         const avg = allEmpsInMonth.length > 0 ? allEmpsInMonth.reduce((sum,em)=>sum+em.achievementPct, 0) / allEmpsInMonth.length : 0;
         return { label: m.shortLabel, value: avg };
       });
@@ -1959,9 +2082,9 @@
         </div>
       `;
       
-      // === CHART 4: Monthly Output vs Target Grouped Bar ===
+      // === CHART 4: Monthly Output vs Target Grouped Bar (excludes manager months) ===
       const monthlyTotals = months.map(m => {
-        const allMonthsData = appData.employees.map(e => e.months.find(em => em.month===m.month && em.year===m.year)).filter(x=>x&&x.isActive);
+        const allMonthsData = appData.employees.map(e => e.months.find(em => em.month===m.month && em.year===m.year)).filter(x=>x&&x.isActive&&!x.isManagerMonth);
         const output = allMonthsData.reduce((sum,em)=>sum+em.output, 0);
         const target = allMonthsData.reduce((sum,em)=>sum+em.target, 0);
         return { label: m.shortLabel, output, target };
@@ -2010,7 +2133,12 @@
     function renderYTDHeatmap() {
       const months = appData.monthsMetadata || [];
       const thresholds = appData.scheme?.thresholds || { targetAchieved: 95, atRisk: 80, terminationYTD: 70 };
-      const emps = [...appData.employees].sort((a,b) => a.achievementPct - b.achievementPct);
+      const emps = [...appData.employees].sort((a,b) => {
+        // Managers at the bottom of the list for clarity
+        if (a.isManager && !b.isManager) return 1;
+        if (!a.isManager && b.isManager) return -1;
+        return a.achievementPct - b.achievementPct;
+      });
       
       const getColorClass = (pct, isActive) => {
         if (!isActive) return 'bg-slate-800/40 text-gray-600';
@@ -2027,12 +2155,18 @@
           if (!mData || !mData.isActive) {
             return `<td class="p-1"><div class="heatmap-cell w-10 h-10 rounded-md flex items-center justify-center text-[10px] bg-slate-800/40 text-gray-600" title="${m.shortLabel}: Not active">—</div></td>`;
           }
+          // Manager month — show 👔 purple cell
+          if (mData.isManagerMonth) {
+            return `<td class="p-1"><div class="heatmap-cell w-10 h-10 rounded-md flex items-center justify-center text-sm bg-gradient-to-br from-purple-700 to-purple-900 text-white border border-purple-500/50" title="${e.name} — ${m.shortLabel} ${m.year}&#10;👔 Manager (exempt from target review)&#10;Output: ${mData.output}">👔</div></td>`;
+          }
           const pct = mData.achievementPct;
           const colorClass = getColorClass(pct, mData.isActive);
           return `<td class="p-1"><div class="heatmap-cell w-10 h-10 rounded-md flex items-center justify-center text-[10px] font-bold ${colorClass}" title="${e.name} — ${m.shortLabel} ${m.year}&#10;Output: ${mData.output} / Target: ${mData.target}&#10;Achievement: ${pct.toFixed(1)}%${mData.isProRated?' (pro-rated)':''}">${pct.toFixed(0)}</div></td>`;
         }).join('');
         
-        const statusBadge = e.isTerminationRisk 
+        const statusBadge = e.isManager
+          ? '<span class="px-1.5 py-0.5 bg-purple-900/60 border border-purple-500 rounded text-[10px] text-purple-200 font-bold">👔 MANAGER</span>'
+          : e.isTerminationRisk 
           ? '<span class="px-1.5 py-0.5 bg-red-900/60 border border-red-600 rounded text-[10px] text-red-200 font-bold">⚫ TERMINATE</span>'
           : e.achievementPct >= thresholds.targetAchieved
           ? '<span class="px-1.5 py-0.5 bg-emerald-900/60 rounded text-[10px] text-emerald-300">✓ Achieved</span>'
@@ -2040,15 +2174,20 @@
           ? '<span class="px-1.5 py-0.5 bg-amber-900/60 rounded text-[10px] text-amber-300">⚠️ At Risk</span>'
           : '<span class="px-1.5 py-0.5 bg-red-900/60 rounded text-[10px] text-red-300">🔴 Critical</span>';
         
+        const rowClass = e.isManager ? 'bg-purple-950/20 hover:bg-purple-900/30' : e.isTerminationRisk ? 'termination-row' : 'hover:bg-slate-800/30';
+        const ytdDisplay = e.isManager
+          ? '<div class="font-bold text-sm text-purple-400">👔 Exempt</div>'
+          : `<div class="font-bold text-lg ${e.achievementPct>=thresholds.targetAchieved?'text-emerald-400':e.achievementPct>=thresholds.atRisk?'text-amber-400':e.achievementPct>=thresholds.terminationYTD?'text-red-400':'text-red-600'}">${e.achievementPct.toFixed(0)}%</div>`;
+        
         return `
-          <tr class="${e.isTerminationRisk?'termination-row':'hover:bg-slate-800/30'} cursor-pointer" onclick="showEmployeePopup('${e.id}')">
-            <td class="px-3 py-1 sticky left-0 bg-slate-900 z-10">
+          <tr class="${rowClass} cursor-pointer" onclick="showEmployeePopup('${e.id}')">
+            <td class="px-3 py-1 sticky left-0 ${e.isManager?'bg-purple-950/40':'bg-slate-900'} z-10">
               <div class="flex items-center gap-2">
-                <div class="min-w-0"><div class="font-medium text-sm truncate">${e.name}</div><div class="text-[10px] text-gray-500">${e.id}${e.isNewJoiner?' 🆕':''}${e.isResigned?' 🚪':''}</div></div>
+                <div class="min-w-0"><div class="font-medium text-sm truncate ${e.isManager?'text-purple-200':''}">${e.name}${e.isManager?' 👔':''}</div><div class="text-[10px] text-gray-500">${e.id}${e.isNewJoiner?' 🆕':''}${e.isResigned?' 🚪':''}</div></div>
               </div>
             </td>
             ${cells}
-            <td class="px-3 py-1 text-center"><div class="font-bold text-lg ${e.achievementPct>=thresholds.targetAchieved?'text-emerald-400':e.achievementPct>=thresholds.atRisk?'text-amber-400':e.achievementPct>=thresholds.terminationYTD?'text-red-400':'text-red-600'}">${e.achievementPct.toFixed(0)}%</div></td>
+            <td class="px-3 py-1 text-center">${ytdDisplay}</td>
             <td class="px-3 py-1 text-center">${statusBadge}</td>
           </tr>
         `;
@@ -2059,7 +2198,7 @@
           <div class="px-5 py-3 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
             <div>
               <div class="font-semibold flex items-center gap-2"><span>🗓️</span><span>Employee × Month Performance Heatmap</span></div>
-              <div class="text-xs text-gray-400 mt-0.5">Sorted worst to best • Click any row to see detailed breakdown</div>
+              <div class="text-xs text-gray-400 mt-0.5">Sorted worst to best • Managers at bottom • Click any row to see breakdown</div>
             </div>
             <div class="flex flex-wrap items-center gap-2 text-[10px]">
               <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-star"></div><span class="text-gray-400">≥110%</span></div>
@@ -2067,6 +2206,7 @@
               <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-yellow"></div><span class="text-gray-400">≥${thresholds.atRisk}%</span></div>
               <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-red"></div><span class="text-gray-400">≥${thresholds.terminationYTD}%</span></div>
               <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-termination"></div><span class="text-red-400 font-bold">&lt;${thresholds.terminationYTD}% Terminate</span></div>
+              <div class="flex items-center gap-1"><div class="w-3 h-3 rounded bg-gradient-to-br from-purple-700 to-purple-900"></div><span class="text-purple-400">👔 Manager</span></div>
             </div>
           </div>
           <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
@@ -2113,6 +2253,8 @@
           <div class="font-semibold mb-3">👥 Team Summary</div>
           <div class="space-y-2 text-sm">
             <div class="flex justify-between"><span class="text-gray-400">Total Employees</span><span class="font-bold">${s.total}</span></div>
+            <div class="flex justify-between"><span class="text-purple-400">👔 Managers (exempt)</span><span class="font-bold text-purple-400">${s.managersCount||0}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Under Review</span><span class="font-bold">${s.reviewableCount||s.total}</span></div>
             <div class="flex justify-between"><span class="text-blue-400">🆕 New Joiners</span><span class="font-bold">${s.newJoinersCount||0}</span></div>
             <div class="flex justify-between"><span class="text-orange-400">🚪 Resigned</span><span class="font-bold">${s.resignedCount||0}</span></div>
             <div class="flex justify-between"><span class="text-gray-400">Avg Achievement</span><span class="font-bold ${s.avgAchievement>=thresholds.targetAchieved?'text-emerald-400':'text-amber-400'}">${s.avgAchievement?.toFixed(1)||0}%</span></div>
@@ -2136,8 +2278,19 @@
         : `(${emp.id}) • Target: ${emp.dailyTarget} • Working Days: ${emp.workingDays}`;
       document.getElementById('popup-employee-id').textContent = subtitle;
 
-      // Termination warning banner (YTD only)
-      const termBanner = (isYTD && emp.isTerminationRisk) ? `
+      // Manager banner (YTD popup) — shown if employee is a manager
+      const mgrBanner = (isYTD && emp.isManager) ? `
+        <div class="col-span-full bg-gradient-to-r from-purple-950 via-purple-900/80 to-purple-950 border-2 border-purple-500 rounded-xl p-3 flex items-center gap-3 mb-2">
+          <div class="text-3xl">👔</div>
+          <div class="flex-1">
+            <div class="font-bold text-purple-200">MANAGER — Exempt from Target Review</div>
+            <div class="text-xs text-purple-300/80">Effective from ${emp.managerInfo?.date || 'N/A'}${emp.managerInfo?.note?' • '+emp.managerInfo.note:''}. Achievement % calculated only from non-manager months.</div>
+          </div>
+        </div>
+      ` : '';
+
+      // Termination warning banner (YTD only, NOT for managers)
+      const termBanner = (isYTD && emp.isTerminationRisk && !emp.isManager) ? `
         <div class="col-span-full bg-gradient-to-r from-red-950 via-red-900/80 to-red-950 border-2 border-red-600 rounded-xl p-3 flex items-center gap-3 animate-pulse-glow mb-2">
           <div class="text-3xl">⚠️</div>
           <div class="flex-1">
@@ -2147,12 +2300,17 @@
         </div>
       ` : '';
 
+      const achievementDisplay = emp.isManager
+        ? '<div class="text-xl font-bold text-purple-400">👔 Exempt</div>'
+        : `<div class="text-xl font-bold ${emp.achievementPct>=thresholds.targetAchieved?'text-emerald-400':emp.achievementPct>=thresholds.atRisk?'text-amber-400':emp.achievementPct>=thresholds.terminationYTD?'text-red-400':'text-red-600'}">${emp.achievementPct.toFixed(1)}%</div>`;
+
       document.getElementById('popup-summary').innerHTML = `
+        ${mgrBanner}
         ${termBanner}
         <div class="text-center"><div class="text-xs text-gray-400">Total Output</div><div class="text-xl font-bold text-cyan-400">${emp.totalDone}</div></div>
         <div class="text-center"><div class="text-xs text-gray-400">Total Points</div><div class="text-xl font-bold text-purple-400">${emp.totalPoints}</div></div>
-        <div class="text-center"><div class="text-xs text-gray-400">Target Required</div><div class="text-xl font-bold text-gray-300">${emp.targetRequired}</div></div>
-        <div class="text-center"><div class="text-xs text-gray-400">Achievement</div><div class="text-xl font-bold ${emp.achievementPct>=thresholds.targetAchieved?'text-emerald-400':emp.achievementPct>=thresholds.atRisk?'text-amber-400':emp.achievementPct>=thresholds.terminationYTD?'text-red-400':'text-red-600'}">${emp.achievementPct.toFixed(1)}%</div></div>
+        <div class="text-center"><div class="text-xs text-gray-400">Target Required</div><div class="text-xl font-bold text-gray-300">${emp.isManager?'Exempt':emp.targetRequired}</div></div>
+        <div class="text-center"><div class="text-xs text-gray-400">Achievement</div>${achievementDisplay}</div>
       `;
 
       if (isYTD) {
@@ -2195,6 +2353,20 @@
         
         // Month-by-month detailed table
         const monthRows = months.map(m => {
+          // Manager month — special row
+          if (m.isManagerMonth) {
+            return `
+              <div class="grid grid-cols-12 gap-2 p-2 rounded text-xs items-center bg-purple-900/20 border border-purple-700/30">
+                <div class="col-span-2 font-semibold text-purple-200">${m.shortLabel} ${m.year}</div>
+                <div class="col-span-1 text-center text-purple-400">${m.workingDays}d</div>
+                <div class="col-span-2 text-center text-purple-400">👔 Exempt</div>
+                <div class="col-span-2 text-center text-cyan-400 font-bold">${m.output}</div>
+                <div class="col-span-1 text-center text-purple-400">${m.points}pt</div>
+                <div class="col-span-2 text-center font-bold text-purple-400">—</div>
+                <div class="col-span-2 text-right text-[10px] text-purple-300">👔 Manager Month</div>
+              </div>
+            `;
+          }
           const pct = m.target > 0 ? (m.output/m.target*100) : 0;
           const statusColor = !m.isActive ? 'text-gray-500' : pct>=thresholds.targetAchieved?'text-emerald-400':pct>=thresholds.atRisk?'text-amber-400':pct>=thresholds.terminationYTD?'text-red-400':'text-red-600';
           const statusLabel = !m.isActive ? '— Not Active' : pct>=thresholds.targetAchieved?'✓ Achieved':pct>=thresholds.atRisk?'⚠️ At Risk':pct>=thresholds.terminationYTD?'🔴 Critical':'⚫ Below Term.';
@@ -2426,6 +2598,60 @@
     }
 
     // ================================================================
+    // SECTION 28B: MANAGER MANAGEMENT
+    // ================================================================
+    function renderManagerList() {
+      const container = document.getElementById('manager-list');
+      const empty = document.getElementById('manager-empty');
+      if (managers.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+      } else {
+        empty.classList.add('hidden');
+        // Sort by effective date descending
+        const sorted = [...managers].sort((a, b) => b.date.localeCompare(a.date));
+        container.innerHTML = sorted.map(m => {
+          const fd = new Date(m.date + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+          return `<div class="flex items-center justify-between p-3 bg-gradient-to-r from-purple-900/30 to-slate-800 border border-purple-700/30 rounded-lg group">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center text-lg">👔</div>
+              <div>
+                <div class="font-medium text-sm text-purple-100">${m.name}</div>
+                <div class="text-xs text-purple-300/70">(${m.id}) • Effective: ${fd}${m.note ? ' • ' + m.note : ''}</div>
+              </div>
+            </div>
+            <button onclick="removeManager('${m.id}')" class="p-2 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100">🗑️</button>
+          </div>`;
+        }).join('');
+      }
+      document.getElementById('manager-count').textContent = managers.length;
+    }
+
+    function addManager() {
+      const name = document.getElementById('manager-name').value.trim();
+      let id = document.getElementById('manager-id').value.trim().toUpperCase();
+      const date = document.getElementById('manager-date').value;
+      const note = document.getElementById('manager-note').value.trim();
+      if (!name || !id || !date) return alert('Fill Name, ID and Effective Date');
+      if (!id.startsWith('PR')) id = 'PR' + id.replace(/\D/g, '');
+      if (managers.some(m => m.id === id)) return alert('Manager with this ID already exists');
+      managers.push({ name, id, date, note });
+      saveAllData();
+      document.getElementById('manager-name').value = '';
+      document.getElementById('manager-id').value = '';
+      document.getElementById('manager-date').value = '';
+      document.getElementById('manager-note').value = '';
+      renderManagerList();
+    }
+
+    function removeManager(id) {
+      if (!confirm('Remove this manager? They will be treated as normal employee again.')) return;
+      managers = managers.filter(m => m.id !== id);
+      saveAllData();
+      renderManagerList();
+    }
+
+    // ================================================================
     // SECTION 29: SCHEME MANAGEMENT
     // ================================================================
     function renderSchemeModal() {
@@ -2534,11 +2760,12 @@
       document.getElementById('settings-holiday-count').textContent = holidays.length;
       document.getElementById('settings-joiner-count').textContent = newJoiners.length;
       document.getElementById('settings-resigned-count').textContent = resignedEmployees.length;
+      document.getElementById('settings-manager-count').textContent = managers.length;
       document.getElementById('settings-scheme-count').textContent = incentiveSchemes.length;
     }
 
     function exportSettings() {
-      const data = { exportDate: new Date().toISOString(), version: '3.0', holidays, newJoiners, resignedEmployees, incentiveSchemes };
+      const data = { exportDate: new Date().toISOString(), version: '4.0', holidays, newJoiners, resignedEmployees, managers, incentiveSchemes };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2559,6 +2786,7 @@
           if (data.holidays) holidays = data.holidays;
           if (data.newJoiners) newJoiners = data.newJoiners;
           if (data.resignedEmployees) resignedEmployees = data.resignedEmployees;
+          if (data.managers) managers = data.managers;
           if (data.incentiveSchemes) incentiveSchemes = data.incentiveSchemes;
           if (incentiveSchemes.length > 0) currentSchemeId = incentiveSchemes[0].id;
           saveAllData();
@@ -2590,6 +2818,31 @@
 
       const s = appData.teamStats;
       let cursorY = 28;
+
+      // === MANAGERS SECTION (YTD ONLY, shown if any managers exist) ===
+      if (isYTD && (s.managersCount||0) > 0) {
+        const mgrEmps = appData.employees.filter(e => e.isManager);
+        
+        // Purple banner
+        doc.setFillColor(88, 28, 135);
+        doc.rect(14, cursorY, 269, 10, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(11);
+        doc.text('>> MANAGERS — Exempt from Target Review & Termination Analysis', 18, cursorY + 7);
+        doc.setFontSize(9);
+        doc.text(mgrEmps.length + ' manager(s)', 240, cursorY + 7);
+        cursorY += 12;
+        
+        doc.autoTable({
+          head: [['#', 'Name', 'ID', 'Effective From', 'Note', 'Output', 'Earnings']],
+          body: mgrEmps.map((e, i) => [i+1, e.name, e.id, e.managerInfo?.date || '-', e.managerInfo?.note || '-', e.totalDone, '₹' + e.totalEarnings]),
+          startY: cursorY,
+          styles: { fontSize: 8, textColor: [88, 28, 135] },
+          headStyles: { fillColor: [88, 28, 135], textColor: [255, 255, 255] },
+          alternateRowStyles: { fillColor: [243, 232, 255] }
+        });
+        cursorY = doc.lastAutoTable.finalY + 8;
+      }
 
       // === TERMINATION SECTION (YTD ONLY) ===
       if (isYTD && (s.termination||0) > 0) {
@@ -2652,10 +2905,10 @@
       if (isYTD) {
         if (withIncentive) {
           headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', thresholds.targetAchieved + '%', '🎯', 'Gap', '%', 'Status', 'W.Inc', 'H.Pay', 'Total']];
-          body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'✓':'✗', e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%', e.isTerminationRisk?'TERMINATE':e.achievementPct>=thresholds.targetAchieved?'Achieved':e.achievementPct>=thresholds.atRisk?'At Risk':'Critical', '₹' + e.workingIncentive, '₹' + e.holidayPay, '₹' + e.totalEarnings]);
+          body = emps.map(e => [e.name + (e.isManager?' 👔':''), e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.isManager?'Exempt':e.targetRequired, e.isManager?'—':(e.targetThresholdValue||0), e.isManager?'👔':(e.isTargetAchieved?'✓':'✗'), e.isManager?'—':(e.shortfall > 0 ? -e.shortfall : 0), e.isManager?'Exempt':(e.achievementPct.toFixed(1) + '%'), e.isManager?'MANAGER':e.isTerminationRisk?'TERMINATE':e.achievementPct>=thresholds.targetAchieved?'Achieved':e.achievementPct>=thresholds.atRisk?'At Risk':'Critical', '₹' + e.workingIncentive, '₹' + e.holidayPay, '₹' + e.totalEarnings]);
         } else {
           headers = [['Name', 'ID', 'T', 'Output', 'Points', 'Target', thresholds.targetAchieved + '%', '🎯', 'Gap', '%', 'Status']];
-          body = emps.map(e => [e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'✓':'✗', e.shortfall > 0 ? -e.shortfall : 0, e.achievementPct.toFixed(1) + '%', e.isTerminationRisk?'TERMINATE':e.achievementPct>=thresholds.targetAchieved?'Achieved':e.achievementPct>=thresholds.atRisk?'At Risk':'Critical']);
+          body = emps.map(e => [e.name + (e.isManager?' 👔':''), e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.isManager?'Exempt':e.targetRequired, e.isManager?'—':(e.targetThresholdValue||0), e.isManager?'👔':(e.isTargetAchieved?'✓':'✗'), e.isManager?'—':(e.shortfall > 0 ? -e.shortfall : 0), e.isManager?'Exempt':(e.achievementPct.toFixed(1) + '%'), e.isManager?'MANAGER':e.isTerminationRisk?'TERMINATE':e.achievementPct>=thresholds.targetAchieved?'Achieved':e.achievementPct>=thresholds.atRisk?'At Risk':'Critical']);
         }
       } else {
         if (withIncentive) {
@@ -2673,7 +2926,10 @@
         didParseCell: function(data) {
           if (isYTD && data.section === 'body') {
             const rowEmp = emps[data.row.index];
-            if (rowEmp && rowEmp.isTerminationRisk) {
+            if (rowEmp && rowEmp.isManager) {
+              data.cell.styles.fillColor = [243, 232, 255];
+              data.cell.styles.textColor = [88, 28, 135];
+            } else if (rowEmp && rowEmp.isTerminationRisk) {
               data.cell.styles.fillColor = [254, 226, 226];
               data.cell.styles.textColor = [127, 29, 29];
             }
@@ -2687,7 +2943,7 @@
       doc.text('Team Summary:', 14, finalY);
       doc.setFontSize(9);
       doc.setTextColor(71, 85, 105);
-      doc.text('Total Employees: ' + s.total + ' | Target Achieved: ' + (s.targetAchievedCount||0) + '/' + s.total + ' | Not Achieved: ' + (s.notAchievedCount||0) + ' | Total Output: ' + s.totalOutput + ' | Total Points: ' + s.totalPoints + ' | Avg: ' + s.avgAchievement.toFixed(1) + '%', 14, finalY + 6);
+      doc.text('Total Employees: ' + s.total + (isYTD?' (Reviewed: '+(s.reviewableCount||0)+' • 👔 Managers: '+(s.managersCount||0)+')':'') + ' | Target Achieved: ' + (s.targetAchievedCount||0) + '/' + (s.reviewableCount||s.total) + ' | Not Achieved: ' + (s.notAchievedCount||0) + ' | Total Output: ' + s.totalOutput + ' | Avg: ' + s.avgAchievement.toFixed(1) + '%', 14, finalY + 6);
       if (isYTD) {
         doc.setTextColor(127, 29, 29);
         doc.text('Star: ' + (s.star||0) + ' | At Risk: ' + (s.atRisk||0) + ' | Critical: ' + (s.critical||0) + ' | TERMINATION RISK: ' + (s.termination||0), 14, finalY + 12);
@@ -2719,8 +2975,8 @@
       const mainData = [mainHead];
       emps.forEach(e => {
         if (isYTD) {
-          const status = e.isTerminationRisk ? 'TERMINATION RISK' : e.achievementPct>=thresholds.targetAchieved ? 'Achieved' : e.achievementPct>=thresholds.atRisk ? 'At Risk' : 'Critical';
-          mainData.push([e.name, e.id, e.dailyTarget, e.activeMonthsCount||e.months?.length||0, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'Yes':'No', e.shortfall, parseFloat(e.achievementPct.toFixed(2)), status, e.trend||'stable', e.workingIncentive, e.holidayPay, e.totalEarnings]);
+          const status = e.isManager ? '👔 MANAGER' : e.isTerminationRisk ? 'TERMINATION RISK' : e.achievementPct>=thresholds.targetAchieved ? 'Achieved' : e.achievementPct>=thresholds.atRisk ? 'At Risk' : 'Critical';
+          mainData.push([e.name + (e.isManager?' 👔':''), e.id, e.dailyTarget, e.activeMonthsCount||e.months?.length||0, e.totalDone, e.totalPoints, e.isManager?'Exempt':e.targetRequired, e.isManager?'—':(e.targetThresholdValue||0), e.isManager?'Exempt':(e.isTargetAchieved?'Yes':'No'), e.isManager?'—':e.shortfall, e.isManager?'Exempt':parseFloat(e.achievementPct.toFixed(2)), status, e.trend||'stable', e.workingIncentive, e.holidayPay, e.totalEarnings]);
         } else {
           mainData.push([e.name, e.id, e.dailyTarget, e.totalDone, e.totalPoints, e.targetRequired, e.targetThresholdValue||0, e.isTargetAchieved?'Yes':'No', e.shortfall, parseFloat(e.achievementPct.toFixed(2)), e.workingIncentive, e.holidayPay, e.totalEarnings]);
         }
@@ -2728,7 +2984,11 @@
       mainData.push([]);
       mainData.push(['TEAM SUMMARY']);
       mainData.push(['Total Employees', s.total]);
-      mainData.push(['Target Achieved (' + thresholds.targetAchieved + '%)', (s.targetAchievedCount||0) + ' / ' + s.total]);
+      if (isYTD && (s.managersCount||0) > 0) {
+        mainData.push(['👔 Managers (Exempt)', s.managersCount]);
+        mainData.push(['Under Review', s.reviewableCount]);
+      }
+      mainData.push(['Target Achieved (' + thresholds.targetAchieved + '%)', (s.targetAchievedCount||0) + ' / ' + (s.reviewableCount||s.total)]);
       mainData.push(['Target NOT Achieved', (s.notAchievedCount||0)]);
       if (isYTD) {
         mainData.push(['Star Performers (≥110%)', s.star||0]);
@@ -2747,7 +3007,24 @@
       wsMain['!cols'] = (isYTD ? [{wch:22},{wch:10},{wch:8},{wch:12},{wch:10},{wch:10},{wch:12},{wch:14},{wch:14},{wch:10},{wch:14},{wch:18},{wch:10},{wch:16},{wch:14},{wch:14}] : [{wch:22},{wch:10},{wch:8},{wch:10},{wch:10},{wch:12},{wch:14},{wch:14},{wch:10},{wch:14},{wch:16},{wch:14},{wch:14}]);
       XLSX.utils.book_append_sheet(wb, wsMain, isYTD ? 'YTD Main Report' : 'MTD Main Report');
 
-      // === SHEET 2: Termination Risk (YTD ONLY) ===
+      // === SHEET 2: Managers (if any) ===
+      if (isYTD && (s.managersCount||0) > 0) {
+        const mgrEmps = appData.employees.filter(e => e.isManager);
+        const mgrData = [
+          ['👔 MANAGER REGISTER — Exempt from Target Review'],
+          ['Report Date:', appData.dateRangeText, '', 'Total Managers:', mgrEmps.length],
+          [],
+          ['#', 'Name', 'ID', 'Effective From', 'Note', 'Months in Report', 'Total Output', 'Total Points', 'Working Incentive', 'Holiday Pay', 'Total Earnings']
+        ];
+        mgrEmps.forEach((e, i) => {
+          mgrData.push([i+1, e.name, e.id, e.managerInfo?.date || '-', e.managerInfo?.note || '-', e.months?.length||0, e.totalDone, e.totalPoints, e.workingIncentive, e.holidayPay, e.totalEarnings]);
+        });
+        const wsMgr = XLSX.utils.aoa_to_sheet(mgrData);
+        wsMgr['!cols'] = [{wch:4},{wch:22},{wch:10},{wch:14},{wch:20},{wch:14},{wch:12},{wch:12},{wch:16},{wch:12},{wch:14}];
+        XLSX.utils.book_append_sheet(wb, wsMgr, 'Managers');
+      }
+
+      // === SHEET 3: Termination Risk (YTD ONLY) ===
       if (isYTD && (s.termination||0) > 0) {
         const termEmps = appData.employees.filter(e => e.isTerminationRisk).sort((a,b) => a.achievementPct - b.achievementPct);
         const termData = [
@@ -2774,19 +3051,25 @@
         mbHead.push('YTD Output', 'YTD Target', 'YTD %', 'Status');
         
         const mbData = [mbHead];
-        const sortedEmps = [...appData.employees].sort((a,b) => a.achievementPct - b.achievementPct);
+        const sortedEmps = [...appData.employees].sort((a,b) => {
+          if (a.isManager && !b.isManager) return 1;
+          if (!a.isManager && b.isManager) return -1;
+          return a.achievementPct - b.achievementPct;
+        });
         sortedEmps.forEach(e => {
-          const row = [e.name, e.id, e.dailyTarget];
+          const row = [e.name + (e.isManager?' 👔':''), e.id, e.dailyTarget];
           monthsMeta.forEach(m => {
             const md = e.months.find(em => em.month===m.month && em.year===m.year);
-            if (md && md.isActive) {
+            if (md && md.isManagerMonth) {
+              row.push(md.output, '👔 Exempt', '👔 Mgr');
+            } else if (md && md.isActive) {
               row.push(md.output, md.target, parseFloat((md.target>0?(md.output/md.target*100):0).toFixed(2)));
             } else {
               row.push('-', '-', '-');
             }
           });
-          const status = e.isTerminationRisk ? '⚫ TERMINATION' : e.achievementPct>=thresholds.targetAchieved ? 'Achieved' : e.achievementPct>=thresholds.atRisk ? 'At Risk' : 'Critical';
-          row.push(e.totalDone, e.targetRequired, parseFloat(e.achievementPct.toFixed(2)), status);
+          const status = e.isManager ? '👔 MANAGER' : e.isTerminationRisk ? '⚫ TERMINATION' : e.achievementPct>=thresholds.targetAchieved ? 'Achieved' : e.achievementPct>=thresholds.atRisk ? 'At Risk' : 'Critical';
+          row.push(e.totalDone, e.isManager?'Exempt':e.targetRequired, e.isManager?'Exempt':parseFloat(e.achievementPct.toFixed(2)), status);
           mbData.push(row);
         });
         const wsMonthly = XLSX.utils.aoa_to_sheet(mbData);
