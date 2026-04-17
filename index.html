@@ -3628,27 +3628,190 @@
         </div>
       ` : '';
 
-      // Grace banner (YTD popup) — for all-grace employees OR employees with some grace months
-      const graceJoinDateFmt = emp.joinerDate ? new Date(emp.joinerDate + 'T00:00:00').toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : '(joining date not on file)';
-      const graceMonthsInView = isYTD ? (emp.months || []).filter(m => m.isGraceMonth).length : 0;
+      // ========================================================================
+      // GRACE CONTEXT — builds the full picture for clear popup remarks
+      // Handles all scenarios: fully-in-grace, grace-applied, grace-completed,
+      // grace with gap months before view, etc.
+      // ========================================================================
+      const MONTH_NAMES_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const MONTH_NAMES_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const monthLabelFull = (y, m) => `${MONTH_NAMES_FULL[m-1]} ${y}`;
+      const monthLabelShort = (y, m) => `${MONTH_NAMES_SHORT[m-1]} ${y}`;
       const schemeGraceMonths = appData.scheme?.penalty?.newJoinerGraceMonths ?? 2;
-      const graceBanner = (isYTD && !emp.isManager && graceMonthsInView > 0) ? `
-        <div class="col-span-full bg-gradient-to-r from-blue-950 via-blue-900/80 to-blue-950 border-2 border-blue-400 rounded-xl p-3 flex items-center gap-3 mb-2">
-          <div class="text-3xl">🎓</div>
-          <div class="flex-1">
-            <div class="font-bold text-blue-100">${emp.isAllGrace ? `GRACE PERIOD (${schemeGraceMonths}-month training)` : `TRAINING MONTHS EXCLUDED (${graceMonthsInView} month${graceMonthsInView>1?'s':''})`}</div>
-            <div class="text-xs text-blue-200/80">Joined ${graceJoinDateFmt}. ${emp.isAllGrace ? `All months in this view fall within the ${schemeGraceMonths}-month training grace — no performance review applies. Earnings still count.` : `First ${graceMonthsInView} month${graceMonthsInView>1?'s':''} excluded from achievement %. Review based on ${emp.reviewableMonthsCount} post-grace month${emp.reviewableMonthsCount>1?'s':''}.`}</div>
+
+      let graceContext = null;
+      if (isYTD && !emp.isManager && emp.hasJoinerRecord && emp.joinerDate && schemeGraceMonths > 0) {
+        const doj = new Date(emp.joinerDate + 'T00:00:00');
+        if (!isNaN(doj)) {
+          const monthsMeta = appData.monthsMetadata || [];
+          const sortedView = [...monthsMeta].sort((a,b) => (a.year*100+a.month) - (b.year*100+b.month));
+          const firstView = sortedView[0];
+
+          // Grace months = N calendar months starting from DOJ month
+          const graceList = [];
+          for (let i = 0; i < schemeGraceMonths; i++) {
+            const d = new Date(doj.getFullYear(), doj.getMonth() + i, 1);
+            const y = d.getFullYear(), m = d.getMonth() + 1;
+            const inView = monthsMeta.some(mm => mm.year === y && mm.month === m);
+            graceList.push({ year: y, month: m, label: monthLabelFull(y, m), inView });
+          }
+          const lastGrace = graceList[graceList.length - 1];
+
+          // Gap months = months strictly between last grace month and first view month
+          const gapList = [];
+          if (firstView && lastGrace) {
+            let cy = lastGrace.year, cm = lastGrace.month + 1;
+            if (cm > 12) { cm = 1; cy++; }
+            while ((cy*100+cm) < (firstView.year*100+firstView.month)) {
+              gapList.push({ year: cy, month: cm, label: monthLabelFull(cy, cm) });
+              cm++;
+              if (cm > 12) { cm = 1; cy++; }
+            }
+          }
+
+          // Review months = view months that are NOT grace months
+          const reviewList = sortedView
+            .filter(vm => !graceList.some(g => g.year === vm.year && g.month === vm.month))
+            .map(vm => ({ year: vm.year, month: vm.month, label: monthLabelFull(vm.year, vm.month), shortLabel: monthLabelShort(vm.year, vm.month) }));
+
+          // First month after grace ends
+          const postY = lastGrace.month === 12 ? lastGrace.year + 1 : lastGrace.year;
+          const postM = lastGrace.month === 12 ? 1 : lastGrace.month + 1;
+          const postGraceMonthLabel = monthLabelFull(postY, postM);
+
+          const graceInViewCount = graceList.filter(g => g.inView).length;
+          let scenario;
+          if (emp.isAllGrace) scenario = 'fully-in-grace';
+          else if (graceInViewCount > 0) scenario = 'grace-applied';
+          else scenario = 'grace-completed';
+
+          graceContext = {
+            scenario,
+            dojFormatted: doj.toLocaleDateString('en-GB', {day:'2-digit', month:'long', year:'numeric'}),
+            graceList, gapList, reviewList,
+            graceInViewCount, postGraceMonthLabel
+          };
+        }
+      }
+
+      // Helper: render a key-value row
+      const rowHTML = (label, value, opts) => {
+        opts = opts || {};
+        return `<div class="grid grid-cols-[140px_1fr] gap-x-3 ${opts.pt?'pt-1':''}"><span class="text-blue-300">${label}</span><span class="${opts.dim?'text-blue-200/80':'font-medium text-blue-100'}">${value}</span></div>`;
+      };
+      const subRowHTML = (text) => `<div class="pl-[140px] text-[11px] text-blue-200/70">${text}</div>`;
+
+      // ========================================================================
+      // GRACE BANNER — scenario-aware detailed remarks
+      // ========================================================================
+      let graceBanner = '';
+      if (graceContext) {
+        const gc = graceContext;
+        let title = '', body = '';
+
+        if (gc.scenario === 'fully-in-grace') {
+          title = 'NEW JOINER — FULLY IN TRAINING GRACE';
+          body = [
+            rowHTML('Date of Joining:', gc.dojFormatted),
+            rowHTML('Grace Policy:', `${schemeGraceMonths}-month training period`),
+            rowHTML('Grace Months:', gc.graceList.map(g=>g.label).join(', ')),
+            rowHTML('Status:', 'All months in current view fall within the training grace period. No performance review applies yet. Earnings are still paid normally.', {pt:true, dim:true}),
+            rowHTML('Evaluation begins:', `From ${gc.postGraceMonthLabel} (after grace ends)`)
+          ].join('');
+        } else if (gc.scenario === 'grace-applied') {
+          title = 'NEW JOINER — TRAINING GRACE APPLIED';
+          const graceSubs = gc.graceList.map(g => subRowHTML(`→ ${g.label}: ${g.inView ? '🎓 In view but excluded from evaluation' : 'Not in current view (before YTD range)'}`)).join('');
+          const reviewText = gc.reviewList.length > 0
+            ? `${gc.reviewList.length} (${gc.reviewList.map(r=>r.shortLabel).join(', ')})`
+            : '0';
+          body = [
+            rowHTML('Date of Joining:', gc.dojFormatted),
+            rowHTML('Grace Policy:', `${schemeGraceMonths}-month training period`),
+            rowHTML('Grace Months:', gc.graceList.map(g=>g.label).join(', ')),
+            graceSubs,
+            rowHTML('Review Period:', `From ${gc.postGraceMonthLabel} onwards`, {pt:true}),
+            rowHTML('Months Evaluated:', reviewText)
+          ].join('');
+        } else { // grace-completed
+          title = 'NEW JOINER — GRACE PERIOD COMPLETED';
+          const gapNote = gc.gapList.length > 0
+            ? rowHTML('Note:', `${gc.gapList.map(g=>g.label).join(', ')} ${gc.gapList.length>1?'fall':'falls'} outside current YTD view (not in range).`, {pt:true, dim:true})
+            : '';
+          const reviewText = gc.reviewList.length > 0
+            ? `${gc.reviewList.length} (${gc.reviewList.map(r=>r.shortLabel).join(', ')})`
+            : '0';
+          body = [
+            rowHTML('Date of Joining:', gc.dojFormatted),
+            rowHTML('Grace Policy:', `${schemeGraceMonths}-month training period`),
+            rowHTML('Grace Months:', `${gc.graceList.map(g=>g.label).join(', ')} <span class="text-blue-300/80">(completed before this view)</span>`),
+            gapNote,
+            rowHTML('Review Period:', `All ${gc.reviewList.length} month${gc.reviewList.length!==1?'s':''} in current view evaluated`, {pt:true}),
+            rowHTML('Months Evaluated:', reviewText)
+          ].join('');
+        }
+
+        graceBanner = `
+          <div class="col-span-full bg-gradient-to-r from-blue-950 via-blue-900/80 to-blue-950 border-2 border-blue-400 rounded-xl p-3 mb-2">
+            <div class="flex items-start gap-3">
+              <div class="text-2xl flex-shrink-0 mt-0.5">🎓</div>
+              <div class="flex-1 min-w-0">
+                <div class="font-bold text-blue-100 text-sm mb-2">${title}</div>
+                <div class="text-xs space-y-1">${body}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // ========================================================================
+      // RESIGNED BANNER (Scenario 8)
+      // ========================================================================
+      const resignedDateFmt = emp.resignedDate ? new Date(emp.resignedDate + 'T00:00:00').toLocaleDateString('en-GB', {day:'2-digit', month:'long', year:'numeric'}) : '';
+      const resignedBanner = (isYTD && emp.isResigned) ? `
+        <div class="col-span-full bg-gradient-to-r from-orange-950 via-orange-900/70 to-orange-950 border-2 border-orange-600 rounded-xl p-3 mb-2">
+          <div class="flex items-start gap-3">
+            <div class="text-2xl flex-shrink-0 mt-0.5">🚪</div>
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-orange-200 text-sm mb-2">RESIGNED EMPLOYEE</div>
+              <div class="text-xs space-y-1">
+                <div class="grid grid-cols-[140px_1fr] gap-x-3"><span class="text-orange-300">Resignation Date:</span><span class="font-medium text-orange-100">${resignedDateFmt}</span></div>
+                <div class="grid grid-cols-[140px_1fr] gap-x-3"><span class="text-orange-300">Status:</span><span class="text-orange-100/90">No longer under active performance review. Historical data retained for records.</span></div>
+              </div>
+            </div>
           </div>
         </div>
       ` : '';
 
-      // Termination warning banner (YTD only, NOT for managers/all-grace)
+      // ========================================================================
+      // MISSING DOJ WARNING (Scenario 11)
+      // Only shown for termination-risk employees with no joiner record — this
+      // is where missing data actually causes harm (wrongful flagging).
+      // ========================================================================
+      const missingDojBanner = (isYTD && emp.isTerminationRisk && !emp.isManager && !emp.isResigned && !emp.hasJoinerRecord) ? `
+        <div class="col-span-full bg-gradient-to-r from-amber-950 via-amber-900/70 to-amber-950 border-2 border-amber-500 rounded-xl p-3 mb-2">
+          <div class="flex items-start gap-3">
+            <div class="text-2xl flex-shrink-0 mt-0.5">⚠️</div>
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-amber-200 text-sm mb-2">NEW JOINER RECORD MISSING</div>
+              <div class="text-xs space-y-1 text-amber-100/90">
+                <div>This employee's Date of Joining is not registered in the system. Training grace period cannot be applied.</div>
+                <div class="pt-1 text-amber-200/80"><b>To fix:</b> Admin → Settings → Bulk Employee + Joiner Import → upload HR Excel with D.O.J. column.</div>
+                <div class="text-amber-200/70 italic">Achievement % is currently calculated on ALL months without grace adjustment.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : '';
+
+      // ========================================================================
+      // TERMINATION BANNER — enhanced: notes "post-grace review" when grace applied
+      // ========================================================================
       const termBanner = (isYTD && emp.isTerminationRisk && !emp.isManager && !emp.isAllGrace) ? `
         <div class="col-span-full bg-gradient-to-r from-red-950 via-red-900/80 to-red-950 border-2 border-red-600 rounded-xl p-3 flex items-center gap-3 animate-pulse-glow mb-2">
           <div class="text-3xl">⚠️</div>
           <div class="flex-1">
-            <div class="font-bold text-red-200">BELOW TERMINATION THRESHOLD (${thresholds.terminationYTD}%)</div>
-            <div class="text-xs text-red-300/80">Achievement ${emp.achievementPct.toFixed(1)}% — Requires management review. Gap: ${emp.shortfall} units short of target.</div>
+            <div class="font-bold text-red-200">BELOW TERMINATION THRESHOLD (${thresholds.terminationYTD}%)${graceContext && graceContext.scenario === 'grace-applied' ? ' — POST-GRACE REVIEW' : ''}</div>
+            <div class="text-xs text-red-300/80">${graceContext && graceContext.scenario === 'grace-applied' ? 'Even with training grace excluded, performance is below threshold. ' : ''}Achievement ${emp.achievementPct.toFixed(1)}% on evaluated months — Requires management review. Gap: ${emp.shortfall} units short of target.</div>
           </div>
         </div>
       ` : '';
@@ -3680,7 +3843,9 @@
 
       document.getElementById('popup-summary').innerHTML = `
         ${mgrBanner}
+        ${resignedBanner}
         ${graceBanner}
+        ${missingDojBanner}
         ${termBanner}
         ${debtBanner}
         ${wipedBanner}
