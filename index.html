@@ -1306,18 +1306,22 @@
       return 0;
     }
 
-    // === NEW JOINER GRACE PERIOD (Option C — date-based, generous) ===
-    // Grace runs from D.O.J. for N calendar months. Grace applies to any MONTH
-    // whose FIRST DAY falls strictly before the grace cutoff.
-    //   graceEnd = D.O.J. + N months (same-day shift)
+    // === NEW JOINER GRACE PERIOD (Calendar-month based, consistent) ===
+    // Grace covers the joining month + (N-1) subsequent months = exactly N
+    // calendar months — regardless of which day of the month the employee
+    // joined. This is the standard HR interpretation of "N months grace".
+    //   graceEnd = first day of (joining month + N)
     //   grace(year, month) = (firstDayOfThatMonth < graceEnd)
     //
-    // Examples for SWATI ADHIKARI, D.O.J. = 2025-12-15, N = 2:
-    //   graceEnd = 2026-02-15
-    //   Dec 2025: firstDay 2025-12-01 < 2026-02-15 → ✅ grace
-    //   Jan 2026: firstDay 2026-01-01 < 2026-02-15 → ✅ grace
-    //   Feb 2026: firstDay 2026-02-01 < 2026-02-15 → ✅ grace (training still ongoing mid-Feb)
-    //   Mar 2026: firstDay 2026-03-01 < 2026-02-15 → ❌ no grace (normal review)
+    // Examples with N = 2:
+    //   D.O.J. = 2025-12-01 → graceEnd = 2026-02-01
+    //     Dec 2025: 2025-12-01 < 2026-02-01 → ✅ grace
+    //     Jan 2026: 2026-01-01 < 2026-02-01 → ✅ grace
+    //     Feb 2026: 2026-02-01 < 2026-02-01 → ❌ evaluated (exactly 2 grace months)
+    //   D.O.J. = 2025-12-15 → graceEnd = 2026-02-01 (SAME — day-of-month ignored)
+    //     Dec 2025: ✅ grace | Jan 2026: ✅ grace | Feb 2026: ❌ evaluated
+    //   D.O.J. = 2025-12-31 → graceEnd = 2026-02-01 (SAME — last day of joining month still gets full grace)
+    //     Dec 2025: ✅ grace | Jan 2026: ✅ grace | Feb 2026: ❌ evaluated
     function _computeGraceEndDate(empId, scheme) {
       const grace = scheme?.penalty?.newJoinerGraceMonths ?? 2;
       if (grace <= 0) return null;
@@ -1325,8 +1329,9 @@
       if (!joiner || !joiner.date) return null;
       const dj = new Date(joiner.date + 'T00:00:00');
       if (isNaN(dj)) return null;
-      // Add N months preserving day-of-month (JS handles month overflow automatically)
-      const graceEnd = new Date(dj.getFullYear(), dj.getMonth() + grace, dj.getDate());
+      // Anchor to first-of-month so joining-day-of-month doesn't affect grace count.
+      // JS handles month overflow automatically (e.g., month 13 → Jan of next year).
+      const graceEnd = new Date(dj.getFullYear(), dj.getMonth() + grace, 1);
       return graceEnd;
     }
 
@@ -2478,6 +2483,9 @@
             else if (avgFirst - avgSecond > 5) ytdTrend = 'down';
           }
         }
+        // Pull joiner/resigned date for popup display (previously missing in YTD path — caused blank "Joined ." text)
+        const _joinerInfoYTD = getJoinerInfo(emp.id);
+        const _resignedInfoYTD = getResignedInfo(emp.id);
         return {
           ...emp,
           // Override targetRequired to reflect REVIEWABLE target (drives % and shortfall display)
@@ -2498,7 +2506,10 @@
           totalEarnings: emp.workingIncentive + emp.holidayPay,
           trend: ytdTrend, alerts: [],
           isNewJoiner,
-          isResigned
+          joinerDate: _joinerInfoYTD?.date,
+          hasJoinerRecord: !!_joinerInfoYTD,
+          isResigned,
+          resignedDate: _resignedInfoYTD?.date
         };
       });
 
@@ -3618,14 +3629,15 @@
       ` : '';
 
       // Grace banner (YTD popup) — for all-grace employees OR employees with some grace months
-      const graceJoinDateFmt = emp.joinerDate ? new Date(emp.joinerDate + 'T00:00:00').toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : '';
+      const graceJoinDateFmt = emp.joinerDate ? new Date(emp.joinerDate + 'T00:00:00').toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : '(joining date not on file)';
       const graceMonthsInView = isYTD ? (emp.months || []).filter(m => m.isGraceMonth).length : 0;
+      const schemeGraceMonths = appData.scheme?.penalty?.newJoinerGraceMonths ?? 2;
       const graceBanner = (isYTD && !emp.isManager && graceMonthsInView > 0) ? `
         <div class="col-span-full bg-gradient-to-r from-blue-950 via-blue-900/80 to-blue-950 border-2 border-blue-400 rounded-xl p-3 flex items-center gap-3 mb-2">
           <div class="text-3xl">🎓</div>
           <div class="flex-1">
-            <div class="font-bold text-blue-100">${emp.isAllGrace ? 'GRACE PERIOD (2-month training)' : `TRAINING MONTHS EXCLUDED (${graceMonthsInView} month${graceMonthsInView>1?'s':''})`}</div>
-            <div class="text-xs text-blue-200/80">Joined ${graceJoinDateFmt}. ${emp.isAllGrace ? 'All months in this view fall within the 2-month training grace — no performance review applies. Earnings still count.' : `First ${graceMonthsInView} month${graceMonthsInView>1?'s':''} excluded from achievement %. Review based on ${emp.reviewableMonthsCount} post-grace month${emp.reviewableMonthsCount>1?'s':''}.`}</div>
+            <div class="font-bold text-blue-100">${emp.isAllGrace ? `GRACE PERIOD (${schemeGraceMonths}-month training)` : `TRAINING MONTHS EXCLUDED (${graceMonthsInView} month${graceMonthsInView>1?'s':''})`}</div>
+            <div class="text-xs text-blue-200/80">Joined ${graceJoinDateFmt}. ${emp.isAllGrace ? `All months in this view fall within the ${schemeGraceMonths}-month training grace — no performance review applies. Earnings still count.` : `First ${graceMonthsInView} month${graceMonthsInView>1?'s':''} excluded from achievement %. Review based on ${emp.reviewableMonthsCount} post-grace month${emp.reviewableMonthsCount>1?'s':''}.`}</div>
           </div>
         </div>
       ` : '';
