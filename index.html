@@ -240,7 +240,7 @@
               <option value="ontrack">✅ On Track</option>
               <option value="atrisk">⚠️ At Risk</option>
               <option value="critical">🔴 Critical</option>
-              <option value="termination">⚫ TERMINATION RISK (YTD)</option>
+              <option value="termination">⚫ OPTIMAL DANGER ZONE (YTD)</option>
               <option value="hasdebt">🚩 Has Outstanding Debt (YTD)</option>
               <option value="neartarget">👌 Near Target (86-94%)</option>
               <option value="managers">👔 Managers</option>
@@ -318,7 +318,7 @@
         
         <!-- ========== FOOTER STATS ========== -->
         <div id="footer-stats" class="grid md:grid-cols-3 gap-4"></div>
-        <div class="text-center text-gray-500 text-sm py-4 no-print">Performance Tracker Pro v4.0</div>
+        <div class="text-center text-gray-500 text-sm py-4 no-print">Performance Tracker Pro v5.0</div>
       </main>
     </div>
 
@@ -418,14 +418,14 @@
       <div class="relative z-10 flex items-center justify-center min-h-screen p-4">
         <div class="bg-slate-900 border border-purple-700/50 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden animate-scale-in">
           <div class="px-6 py-4 border-b border-purple-700/50 bg-gradient-to-r from-purple-900/40 to-slate-900 flex items-center justify-between">
-            <div><h2 class="text-xl font-bold text-purple-200">👔 Manager Register</h2><p class="text-sm text-purple-300/70">Exempt from target review & termination analysis</p></div>
+            <div><h2 class="text-xl font-bold text-purple-200">👔 Manager Register</h2><p class="text-sm text-purple-300/70">Exempt from target review & Optimal Danger Zone analysis</p></div>
             <button onclick="closeModal('manager-modal')" class="p-2 hover:bg-slate-800 rounded-lg">✕</button>
           </div>
           <div class="px-6 py-3 bg-purple-900/10 border-b border-purple-700/30">
             <div class="text-xs text-purple-300/80 flex items-start gap-2">
               <span>ℹ️</span>
               <div>
-                <strong>How it works:</strong> Employees marked as managers are exempt from target achievement %, termination risk, and team average calculations from their <strong>Effective Date</strong> onwards. Months <em>before</em> the effective date are still counted normally. Their output & incentive earnings are always calculated.
+                <strong>How it works:</strong> Employees marked as managers are exempt from target achievement %, Optimal Danger Zone, and team average calculations from their <strong>Effective Date</strong> onwards. Months <em>before</em> the effective date are still counted normally. Their output & incentive earnings are always calculated.
               </div>
             </div>
           </div>
@@ -520,11 +520,11 @@
                   <div><label class="block text-xs text-gray-400 mb-1">🟢 Target Achieved (%)</label><input type="number" id="threshold-target" value="95" min="50" max="100" class="w-full bg-slate-700 border border-slate-600 px-3 py-2 rounded-lg text-sm text-center"></div>
                   <div><label class="block text-xs text-blue-400 mb-1">👌 Near Target (%)</label><input type="number" id="threshold-neartarget" value="86" min="50" max="100" class="w-full bg-slate-700 border border-blue-700/50 px-3 py-2 rounded-lg text-sm text-center text-blue-300"></div>
                   <div><label class="block text-xs text-amber-400 mb-1">⚠️ At Risk (%)</label><input type="number" id="threshold-atrisk" value="80" min="50" max="100" class="w-full bg-slate-700 border border-amber-700/50 px-3 py-2 rounded-lg text-sm text-center text-amber-300"></div>
-                  <div><label class="block text-xs text-red-400 mb-1">⚫ YTD Termination (%)</label><input type="number" id="threshold-termination" value="70" min="40" max="90" class="w-full bg-slate-700 border border-red-700/50 px-3 py-2 rounded-lg text-sm text-center text-red-300"></div>
+                  <div><label class="block text-xs text-red-400 mb-1">⚫ YTD Opt. Danger Zone (%)</label><input type="number" id="threshold-termination" value="70" min="40" max="90" class="w-full bg-slate-700 border border-red-700/50 px-3 py-2 rounded-lg text-sm text-center text-red-300"></div>
                 </div>
                 <div class="mt-3 text-xs text-gray-500 space-y-1">
-                  <div><span class="text-emerald-400">● ≥ Target:</span> Achieved | <span class="text-blue-400">● Near Target:</span> Grace zone (no penalty) | <span class="text-amber-400">● At Risk:</span> Narrow band | <span class="text-red-400">● Critical/Termination:</span> Below</div>
-                  <div class="pt-1 border-t border-slate-700 mt-1"><span class="text-red-500 font-semibold">⚫ YTD Termination:</span> <span class="text-gray-400">Employees below this % across combined months in YTD are flagged for termination review. YTD reports only.</span></div>
+                  <div><span class="text-emerald-400">● ≥ Target:</span> Achieved | <span class="text-blue-400">● Near Target:</span> Grace zone (no penalty) | <span class="text-amber-400">● At Risk:</span> Narrow band | <span class="text-red-400">● Critical/Opt. Danger Zone:</span> Below</div>
+                  <div class="pt-1 border-t border-slate-700 mt-1"><span class="text-red-500 font-semibold">⚫ YTD Optimal Danger Zone:</span> <span class="text-gray-400">Employees below this % across combined months in YTD are flagged for Optimal Danger Zone review. YTD reports only.</span></div>
                 </div>
               </div>
               
@@ -548,7 +548,7 @@
                       <div><label class="block text-[10px] text-blue-400 mb-1">👌 Near Target<br>(86-94%)</label><input type="number" id="penalty-neartarget" value="0" min="0" max="100" class="w-full bg-slate-700 border border-blue-700/50 px-3 py-2 rounded-lg text-sm text-center text-blue-300"></div>
                       <div><label class="block text-[10px] text-amber-400 mb-1">⚠️ At Risk<br>(80-85%)</label><input type="number" id="penalty-atrisk" value="5" min="0" max="100" class="w-full bg-slate-700 border border-amber-700/50 px-3 py-2 rounded-lg text-sm text-center text-amber-300"></div>
                       <div><label class="block text-[10px] text-red-400 mb-1">🔴 Critical<br>(70-79%)</label><input type="number" id="penalty-critical" value="15" min="0" max="100" class="w-full bg-slate-700 border border-red-700/50 px-3 py-2 rounded-lg text-sm text-center text-red-300"></div>
-                      <div><label class="block text-[10px] text-red-500 mb-1">⚫ Termination<br>(&lt;70%)</label><input type="number" id="penalty-termination" value="25" min="0" max="100" class="w-full bg-slate-700 border border-red-700 px-3 py-2 rounded-lg text-sm text-center text-red-400"></div>
+                      <div><label class="block text-[10px] text-red-500 mb-1">⚫ Opt. Danger Zone<br>(&lt;70%)</label><input type="number" id="penalty-termination" value="25" min="0" max="100" class="w-full bg-slate-700 border border-red-700 px-3 py-2 rounded-lg text-sm text-center text-red-400"></div>
                     </div>
                   </div>
                   
@@ -567,7 +567,7 @@
                   
                   <div class="pt-2 border-t border-red-900/40 space-y-2">
                     <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" id="penalty-clear-on-recovery" class="w-4 h-4 accent-emerald-500" checked><span class="text-gray-300">Clear carry-forward debt if employee hits ≥95% in any month (forgiveness)</span></label>
-                    <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" id="penalty-wipe-on-termination" class="w-4 h-4 accent-red-500" checked><span class="text-gray-300">Wipe debt when employee is in termination tier (don't double-punish)</span></label>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" id="penalty-wipe-on-termination" class="w-4 h-4 accent-red-500" checked><span class="text-gray-300">Wipe debt when employee is in Optimal Danger Zone tier (don't double-punish)</span></label>
                   </div>
                   
                   <div class="mt-2 p-2 bg-slate-800/50 rounded-lg border border-slate-700">
@@ -2307,11 +2307,16 @@
         const earliest = monthsMetadata[0];
         const earliestYM = earliest.year * 100 + earliest.month;
         try {
+          // Scope the fetch to employees currently in view AND rows with positive debt
+          // strictly before the earliest YTD month. Prevents a full-table scan as
+          // penalty_history grows. Client-side filter below is retained as a safety net.
+          const _empIdsInView = Array.from(empMap.keys());
           const { data: allPriorRows, error: priorErr } = await sb
             .from('penalty_history')
             .select('employee_pr_id, year, month, new_debt')
-            .order('year', { ascending: false })
-            .order('month', { ascending: false });
+            .in('employee_pr_id', _empIdsInView)
+            .or(`year.lt.${earliest.year},and(year.eq.${earliest.year},month.lt.${earliest.month})`)
+            .gt('new_debt', 0);
           if (priorErr) throw priorErr;
           (allPriorRows || []).forEach(r => {
             const ym = r.year * 100 + r.month;
@@ -2441,8 +2446,12 @@
             // New carry-forward
             let newDebt = m.penalty.totalOwed - m.penalty.deducted;
             
-            // Debt ceiling safeguard
-            const monthlyIncentivePotential = (m.target || 0) * 8; // rough estimate
+            // Debt ceiling safeguard — use the month's scheme exceed rate so the ceiling
+            // scales with real earning potential instead of a hardcoded 8 (rough estimate).
+            const _monthScheme = getSchemeForMonth(m.year, m.month);
+            const _slab = emp.dailyTarget === 10 ? _monthScheme.target10 : _monthScheme.target8;
+            const _exceedRate = (_slab && _slab.exceedRate) || 9;
+            const monthlyIncentivePotential = (m.target || 0) * _exceedRate;
             const ceiling = monthlyIncentivePotential * (penaltyCfg.debtCeilingMultiplier || 2);
             if (newDebt > ceiling && ceiling > 0) {
               penaltyData.hitDebtCeiling = true;
@@ -2891,7 +2900,7 @@
           const statusBadge = e.isManager
             ? '<span class="px-2 py-0.5 bg-purple-900/80 border border-purple-500 rounded text-[10px] text-purple-200 font-bold inline-block">👔 MANAGER</span>'
             : e.isTerminationRisk
-            ? '<span class="px-2 py-0.5 bg-red-900/80 border border-red-600 rounded text-[10px] text-red-200 font-bold animate-pulse-red inline-block">⚫ TERMINATE</span>'
+            ? '<span class="px-2 py-0.5 bg-red-900/80 border border-red-600 rounded text-[10px] text-red-200 font-bold animate-pulse-red inline-block">⚫ OPT. DANGER ZONE</span>'
             : e.isAllGrace
             ? `<span class="px-2 py-0.5 bg-blue-900/80 border border-blue-400 rounded text-[10px] text-blue-100 font-bold inline-block" title="Joined ${graceJoinDate} — entire view covered by 2-month training grace">🎓 GRACE (Joined ${graceJoinDate})</span>`
             : e.achievementPct >= 110
@@ -3074,7 +3083,7 @@
           <div class="flex items-center gap-4">
             <div class="text-4xl">🚨</div>
             <div>
-              <div class="text-xl font-bold text-red-300">TERMINATION REVIEW REQUIRED</div>
+              <div class="text-xl font-bold text-red-300">OPTIMAL DANGER ZONE REVIEW REQUIRED</div>
               <div class="text-sm text-red-200"><strong>${termCount}</strong> employee${termCount>1?'s':''} performing below <strong>${termPct}%</strong> YTD threshold — immediate management review needed</div>
             </div>
           </div>
@@ -3083,7 +3092,7 @@
       ` : `
         <div class="mt-4 bg-gradient-to-r from-emerald-950/50 to-emerald-900/30 border border-emerald-700/50 rounded-xl p-4 flex items-center gap-4">
           <div class="text-3xl">✅</div>
-          <div><div class="font-bold text-emerald-300">No Termination Risks</div><div class="text-sm text-emerald-200/80">All employees performing above ${termPct}% YTD threshold</div></div>
+          <div><div class="font-bold text-emerald-300">No Optimal Danger Zone Cases</div><div class="text-sm text-emerald-200/80">All employees performing above ${termPct}% YTD threshold</div></div>
         </div>
       `;
       
@@ -3096,7 +3105,7 @@
               <div class="flex flex-wrap items-center gap-2 text-sm text-gray-400">
                 <span class="px-3 py-1 bg-slate-800/70 rounded-full">📅 ${months.map(m=>m.shortLabel+' '+m.year).join(' → ')}</span>
                 <span class="px-3 py-1 bg-purple-900/30 border border-purple-700/50 rounded-full text-purple-300">🎯 Target: ${targetPct}%</span>
-                <span class="px-3 py-1 bg-red-900/30 border border-red-700/50 rounded-full text-red-300">⚫ Termination: &lt;${termPct}%</span>
+                <span class="px-3 py-1 bg-red-900/30 border border-red-700/50 rounded-full text-red-300">⚫ Opt. Danger Zone: &lt;${termPct}%</span>
               </div>
             </div>
           </div>
@@ -3133,7 +3142,7 @@
               <div class="text-2xl font-bold text-amber-400">${s.notAchievedCount||0}</div>
             </div>
             <div class="bg-gradient-to-br from-red-950 to-red-900/40 border-2 ${termCount>0?'border-red-500':'border-red-800/50'} rounded-xl p-3">
-              <div class="text-xs uppercase text-red-400 mb-1">⚫ Termination</div>
+              <div class="text-xs uppercase text-red-400 mb-1">⚫ Opt. Danger</div>
               <div class="text-2xl font-bold ${termCount>0?'text-red-400':'text-gray-500'}">${termCount}</div>
             </div>
           </div>
@@ -3184,7 +3193,7 @@
             <div class="flex items-center gap-3">
               <div class="w-12 h-12 rounded-xl bg-red-600 flex items-center justify-center text-2xl animate-pulse-red">⚠️</div>
               <div>
-                <h2 class="text-xl font-bold text-red-200">TERMINATION RISK EMPLOYEES</h2>
+                <h2 class="text-xl font-bold text-red-200">OPTIMAL DANGER ZONE EMPLOYEES</h2>
                 <p class="text-sm text-red-300/80">Performing below <strong>${termPct}%</strong> YTD threshold • Requires immediate management review</p>
               </div>
             </div>
@@ -3228,7 +3237,7 @@
                     <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
                       <div class="h-full bg-gradient-to-r from-red-600 to-red-400" style="width:${Math.min(e.achievementPct, 100)}%"></div>
                     </div>
-                    <div class="text-[10px] text-red-400/70 mt-1">${termPct}% required to avoid termination review</div>
+                    <div class="text-[10px] text-red-400/70 mt-1">${termPct}% required to avoid Optimal Danger Zone review</div>
                   </div>
                   
                   ${activeMonths.length > 1 ? `
@@ -3277,7 +3286,7 @@
         { label: `👌 Near Target (${nearT}-${thresholds.targetAchieved-1}%)`, value: s.nearTarget || 0, color: '#3b82f6' },
         { label: `At Risk (${thresholds.atRisk}-${nearT-1}%)`, value: s.atRisk || 0, color: '#f59e0b' },
         { label: `Critical (${thresholds.terminationYTD}-${thresholds.atRisk-1}%)`, value: s.critical || 0, color: '#dc2626' },
-        { label: `Termination (<${thresholds.terminationYTD}%)`, value: s.termination || 0, color: '#7f1d1d' }
+        { label: `Opt. Danger Zone (<${thresholds.terminationYTD}%)`, value: s.termination || 0, color: '#7f1d1d' }
       ];
       const totalBucket = buckets.reduce((a,b) => a+b.value, 0) || 1;
       let cumAngle = -Math.PI/2;
@@ -3348,7 +3357,7 @@
             <line x1="${chartPadding.left}" y1="${targetLine}" x2="${trendW-chartPadding.right}" y2="${targetLine}" stroke="#10b981" stroke-width="0.8" stroke-dasharray="4,2"/>
             <text x="${trendW-chartPadding.right-2}" y="${targetLine-2}" text-anchor="end" fill="#10b981" font-size="7">Target ${thresholds.targetAchieved}%</text>
             <line x1="${chartPadding.left}" y1="${termLine}" x2="${trendW-chartPadding.right}" y2="${termLine}" stroke="#dc2626" stroke-width="0.8" stroke-dasharray="4,2"/>
-            <text x="${trendW-chartPadding.right-2}" y="${termLine+8}" text-anchor="end" fill="#dc2626" font-size="7">Termination ${thresholds.terminationYTD}%</text>
+            <text x="${trendW-chartPadding.right-2}" y="${termLine+8}" text-anchor="end" fill="#dc2626" font-size="7">Opt. Danger ${thresholds.terminationYTD}%</text>
             <defs><linearGradient id="trendGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs>
             <polyline points="${trendPoints}" fill="none" stroke="url(#trendGrad)" stroke-width="2.5" stroke-linejoin="round"/>
             ${monthlyAvg.map((m,i) => `<circle cx="${scaleX(i)}" cy="${scaleY(m.value)}" r="3" fill="${m.value>=thresholds.targetAchieved?'#10b981':m.value>=thresholds.atRisk?'#f59e0b':'#dc2626'}" stroke="#0f172a" stroke-width="1.5"><title>${m.label}: ${m.value.toFixed(1)}%</title></circle><text x="${scaleX(i)}" y="${scaleY(m.value)-8}" text-anchor="middle" fill="#f3f4f6" font-size="8" font-weight="bold">${m.value.toFixed(0)}%</text>`).join('')}
@@ -3485,7 +3494,7 @@
           : e.isAllGrace
           ? '<span class="px-1.5 py-0.5 bg-blue-900/60 border border-blue-400 rounded text-[10px] text-blue-200 font-bold">🎓 GRACE</span>'
           : e.isTerminationRisk 
-          ? '<span class="px-1.5 py-0.5 bg-red-900/60 border border-red-600 rounded text-[10px] text-red-200 font-bold">⚫ TERMINATE</span>'
+          ? '<span class="px-1.5 py-0.5 bg-red-900/60 border border-red-600 rounded text-[10px] text-red-200 font-bold">⚫ OPT. DANGER ZONE</span>'
           : e.achievementPct >= thresholds.targetAchieved
           ? '<span class="px-1.5 py-0.5 bg-emerald-900/60 rounded text-[10px] text-emerald-300">✓ Achieved</span>'
           : e.achievementPct >= thresholds.atRisk
@@ -3526,7 +3535,7 @@
               <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-neartarget"></div><span class="text-gray-400">👌 ≥${thresholds.nearTarget||86}%</span></div>
               <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-yellow"></div><span class="text-gray-400">≥${thresholds.atRisk}%</span></div>
               <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-red"></div><span class="text-gray-400">≥${thresholds.terminationYTD}%</span></div>
-              <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-termination"></div><span class="text-red-400 font-bold">&lt;${thresholds.terminationYTD}% Terminate</span></div>
+              <div class="flex items-center gap-1"><div class="w-3 h-3 rounded cell-termination"></div><span class="text-red-400 font-bold">&lt;${thresholds.terminationYTD}% Opt. Danger Zone</span></div>
               <div class="flex items-center gap-1"><div class="w-3 h-3 rounded bg-gradient-to-br from-purple-700 to-purple-900"></div><span class="text-purple-400">👔 Manager</span></div>
             </div>
           </div>
@@ -3560,7 +3569,7 @@
             <div class="flex justify-between"><span class="text-blue-400">👌 Near Target (${nearT}-${thresholds.targetAchieved-1}%)</span><span class="font-bold text-blue-400">${s.nearTarget||0}</span></div>
             <div class="flex justify-between"><span class="text-amber-400">⚠️ At Risk (${thresholds.atRisk}-${nearT-1}%)</span><span class="font-bold">${s.atRisk||0}</span></div>
             <div class="flex justify-between"><span class="text-red-400">🔴 Critical (${thresholds.terminationYTD}-${thresholds.atRisk-1}%)</span><span class="font-bold">${s.critical||0}</span></div>
-            <div class="flex justify-between border-t border-red-900/50 pt-2 mt-2"><span class="text-red-500 font-bold">⚫ Termination (&lt;${thresholds.terminationYTD}%)</span><span class="font-bold text-red-500 text-lg">${s.termination||0}</span></div>
+            <div class="flex justify-between border-t border-red-900/50 pt-2 mt-2"><span class="text-red-500 font-bold">⚫ Optimal Danger Zone (&lt;${thresholds.terminationYTD}%)</span><span class="font-bold text-red-500 text-lg">${s.termination||0}</span></div>
           </div>
         </div>
         ${s.penaltyEnabled ? `
@@ -3810,7 +3819,7 @@
         <div class="col-span-full bg-gradient-to-r from-red-950 via-red-900/80 to-red-950 border-2 border-red-600 rounded-xl p-3 flex items-center gap-3 animate-pulse-glow mb-2">
           <div class="text-3xl">⚠️</div>
           <div class="flex-1">
-            <div class="font-bold text-red-200">BELOW TERMINATION THRESHOLD (${thresholds.terminationYTD}%)${graceContext && graceContext.scenario === 'grace-applied' ? ' — POST-GRACE REVIEW' : ''}</div>
+            <div class="font-bold text-red-200">BELOW OPTIMAL DANGER ZONE THRESHOLD (${thresholds.terminationYTD}%)${graceContext && graceContext.scenario === 'grace-applied' ? ' — POST-GRACE REVIEW' : ''}</div>
             <div class="text-xs text-red-300/80">${graceContext && graceContext.scenario === 'grace-applied' ? 'Even with training grace excluded, performance is below threshold. ' : ''}Achievement ${emp.achievementPct.toFixed(1)}% on evaluated months — Requires management review. Gap: ${emp.shortfall} units short of target.</div>
           </div>
         </div>
@@ -3831,7 +3840,7 @@
       const wipedBanner = (isYTD && emp.penalty?.isTerminationWiped) ? `
         <div class="col-span-full bg-slate-800/60 border border-slate-600 rounded-xl p-2 flex items-center gap-2 mb-2">
           <div class="text-lg">✓</div>
-          <div class="text-xs text-gray-400">Carry-forward debt wiped due to termination tier (no double-punishment).</div>
+          <div class="text-xs text-gray-400">Carry-forward debt wiped due to Optimal Danger Zone tier (no double-punishment).</div>
         </div>
       ` : '';
 
@@ -3913,7 +3922,7 @@
           const pct = m.target > 0 ? (m.output/m.target*100) : 0;
           const nearT = thresholds.nearTarget || 86;
           const statusColor = !m.isActive ? 'text-gray-500' : pct>=thresholds.targetAchieved?'text-emerald-400':pct>=nearT?'text-blue-400':pct>=thresholds.atRisk?'text-amber-400':pct>=thresholds.terminationYTD?'text-red-400':'text-red-600';
-          const statusLabel = !m.isActive ? '— Not Active' : pct>=thresholds.targetAchieved?'✓ Achieved':pct>=nearT?'👌 Near Target':pct>=thresholds.atRisk?'⚠️ At Risk':pct>=thresholds.terminationYTD?'🔴 Critical':'⚫ Below Term.';
+          const statusLabel = !m.isActive ? '— Not Active' : pct>=thresholds.targetAchieved?'✓ Achieved':pct>=nearT?'👌 Near Target':pct>=thresholds.atRisk?'⚠️ At Risk':pct>=thresholds.terminationYTD?'🔴 Critical':'⚫ Opt. Danger Zone';
           const rowBg = !m.isActive ? 'bg-slate-800/30' : m.isProRated ? 'bg-blue-900/10' : (pct<thresholds.terminationYTD ? 'bg-red-900/20' : 'bg-slate-800');
           
           // Penalty info for this month
@@ -3953,7 +3962,7 @@
               <div><div class="text-[10px] text-gray-400">Outstanding Debt</div><div class="text-base font-bold ${emp.penalty.isTerminationWiped?'text-gray-500':(emp.penalty.outstandingDebt>0?'text-red-400':'text-emerald-500')}">${emp.penalty.isTerminationWiped?'wiped':(emp.penalty.outstandingDebt>0?'🚩 ₹'+emp.penalty.outstandingDebt:'✓ Clear')}</div></div>
               <div><div class="text-[10px] text-gray-400">Net Payable</div><div class="text-base font-bold text-emerald-400">₹${emp.netTotal}</div></div>
             </div>
-            ${emp.penalty.isTerminationWiped?'<div class="text-[10px] text-gray-400 mt-2 text-center">ℹ️ Debt wiped due to termination tier (no double-punishment)</div>':''}
+            ${emp.penalty.isTerminationWiped?'<div class="text-[10px] text-gray-400 mt-2 text-center">ℹ️ Debt wiped due to Optimal Danger Zone tier (no double-punishment)</div>':''}
             ${emp.penalty.hitDebtCeiling?'<div class="text-[10px] text-orange-400 mt-2 text-center">⚠️ Debt ceiling reached — further accumulation halted</div>':''}
           </div>
         ` : '';
@@ -4331,9 +4340,9 @@
       
       if (targetThreshold <= nearTargetThreshold) return alert('Target Achieved % must be greater than Near Target %');
       if (nearTargetThreshold <= atRiskThreshold) return alert('Near Target % must be greater than At Risk %');
-      if (atRiskThreshold <= terminationThreshold) return alert('At Risk % must be greater than YTD Termination %');
+      if (atRiskThreshold <= terminationThreshold) return alert('At Risk % must be greater than YTD Optimal Danger Zone %');
       if (targetThreshold > 100 || targetThreshold < 50) return alert('Target Achieved % must be between 50 and 100');
-      if (terminationThreshold > 90 || terminationThreshold < 40) return alert('YTD Termination % must be between 40 and 90');
+      if (terminationThreshold > 90 || terminationThreshold < 40) return alert('YTD Optimal Danger Zone % must be between 40 and 90');
       
       const penaltyEnabled = document.getElementById('penalty-enabled').checked;
       const pNearTarget = parseInt(document.getElementById('penalty-neartarget').value) || 0;
@@ -4768,7 +4777,7 @@
       doc.text(title, 14, 15);
       doc.setFontSize(10);
       doc.setTextColor(100, 116, 139);
-      doc.text('Date: ' + appData.dateRangeText + ' | Working Days: ' + appData.workingDays + ' | Target: ' + tT + '%' + (isYTD?' | Termination Threshold: ' + tX + '%':''), 14, 22);
+      doc.text('Date: ' + appData.dateRangeText + ' | Working Days: ' + appData.workingDays + ' | Target: ' + tT + '%' + (isYTD?' | Opt. Danger Zone Threshold: ' + tX + '%':''), 14, 22);
 
       const s = appData.teamStats;
       let cursorY = 28;
@@ -4782,7 +4791,7 @@
         doc.rect(14, cursorY, 269, 10, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(11);
-        doc.text('>> MANAGERS — Exempt from Target Review & Termination Analysis', 18, cursorY + 7);
+        doc.text('>> MANAGERS — Exempt from Target Review & Optimal Danger Zone Analysis', 18, cursorY + 7);
         doc.setFontSize(9);
         doc.text(mgrEmps.length + ' manager(s)', 240, cursorY + 7);
         cursorY += 12;
@@ -4835,7 +4844,7 @@
         doc.rect(14, cursorY, 269, 12, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(13);
-        doc.text('!! TERMINATION RISK EMPLOYEES — BELOW ' + thresholds.terminationYTD + '% YTD THRESHOLD !!', 18, cursorY + 8);
+        doc.text('!! OPTIMAL DANGER ZONE EMPLOYEES — BELOW ' + thresholds.terminationYTD + '% YTD THRESHOLD !!', 18, cursorY + 8);
         doc.setFontSize(10);
         doc.text(termEmps.length + ' employee(s) — Requires management review', 210, cursorY + 8);
         cursorY += 14;
@@ -4853,7 +4862,7 @@
         // Monthly breakdown for termination employees
         doc.setFontSize(11);
         doc.setTextColor(127, 29, 29);
-        doc.text('Monthly Breakdown — Termination Risk Employees', 14, cursorY);
+        doc.text('Monthly Breakdown — Optimal Danger Zone Employees', 14, cursorY);
         cursorY += 4;
         
         const monthsMeta = appData.monthsMetadata || [];
@@ -4940,7 +4949,7 @@
         const nearT = thresholds.nearTarget || 86;
         const getStat = e => {
           if (e.isManager) return 'MANAGER';
-          if (e.isTerminationRisk) return 'TERMINATE';
+          if (e.isTerminationRisk) return 'OPT. DANGER ZONE';
           if (e.achievementPct >= 110) return 'STAR';
           if (e.achievementPct >= thresholds.targetAchieved) return 'Achieved';
           if (e.achievementPct >= nearT) return 'Near Target';
@@ -4995,7 +5004,7 @@
       doc.text('Total Employees: ' + s.total + (isYTD?' (Reviewed: '+(s.reviewableCount||0)+' • 👔 Managers: '+(s.managersCount||0)+')':'') + ' | Target Achieved: ' + (s.targetAchievedCount||0) + '/' + (s.reviewableCount||s.total) + ' | Not Achieved: ' + (s.notAchievedCount||0) + ' | Total Output: ' + s.totalOutput + ' | Avg: ' + s.avgAchievement.toFixed(1) + '%', 14, finalY + 6);
       if (isYTD) {
         doc.setTextColor(127, 29, 29);
-        doc.text('Star: ' + (s.star||0) + ' | At Risk: ' + (s.atRisk||0) + ' | Critical: ' + (s.critical||0) + ' | TERMINATION RISK: ' + (s.termination||0), 14, finalY + 12);
+        doc.text('Star: ' + (s.star||0) + ' | At Risk: ' + (s.atRisk||0) + ' | Critical: ' + (s.critical||0) + ' | OPT. DANGER ZONE: ' + (s.termination||0), 14, finalY + 12);
         doc.setTextColor(71, 85, 105);
         if (withIncentive) {
           doc.text('Working Incentive: ₹' + s.totalWorkingIncentive + ' | Holiday Pay: ₹' + s.totalHolidayPay + ' | Total Earnings: ₹' + s.totalEarnings, 14, finalY + 18);
@@ -5029,7 +5038,7 @@
       const getYTDStatus = e => {
         if (e.isManager) return '👔 MANAGER';
         if (e.isAllGrace) return '🎓 GRACE (Trainee)';
-        if (e.isTerminationRisk) return '⚫ TERMINATION RISK';
+        if (e.isTerminationRisk) return '⚫ OPTIMAL DANGER ZONE';
         if (e.achievementPct >= 110) return '⭐ Star';
         if (e.achievementPct >= thresholds.targetAchieved) return '✓ Achieved';
         if (e.achievementPct >= nearT) return '👌 Near Target';
@@ -5078,7 +5087,7 @@
         mainData.push(['👌 Near Target (' + nearT + '-' + (thresholds.targetAchieved-1) + '%)', s.nearTarget||0]);
         mainData.push(['At Risk (' + thresholds.atRisk + '-' + (nearT-1) + '%)', s.atRisk||0]);
         mainData.push(['Critical', s.critical||0]);
-        mainData.push(['⚫ TERMINATION RISK (<' + thresholds.terminationYTD + '%)', s.termination||0]);
+        mainData.push(['⚫ OPTIMAL DANGER ZONE (<' + thresholds.terminationYTD + '%)', s.termination||0]);
       }
       mainData.push(['Total Output', s.totalOutput]);
       mainData.push(['Total Points', s.totalPoints]);
@@ -5145,7 +5154,7 @@
         const monthsMeta = appData.monthsMetadata || [];
         const penaltyHeader1 = ['⚠️ PENALTY BREAKDOWN — Carry-Forward Debt System'];
         const penaltyHeader2 = ['Report Date:', appData.dateRangeText, '', 'System:', 'ACTIVE', '', 'Total Deducted:', '₹' + (s.totalPenaltyDeducted||0), 'Outstanding Debt:', '₹' + (s.totalOutstandingDebt||0)];
-        const penaltyHeader3 = ['Thresholds:', 'NearTarget ' + (thresholds.nearTarget||86) + '% / AtRisk ' + thresholds.atRisk + '% / Critical ' + thresholds.terminationYTD + '% / Termination <' + thresholds.terminationYTD + '%'];
+        const penaltyHeader3 = ['Thresholds:', 'NearTarget ' + (thresholds.nearTarget||86) + '% / AtRisk ' + thresholds.atRisk + '% / Critical ' + thresholds.terminationYTD + '% / Opt. Danger Zone <' + thresholds.terminationYTD + '%'];
         
         // Build column headers with monthly details
         const baseCols = ['Name', 'ID', 'YTD %', 'YTD Tier'];
@@ -5172,7 +5181,7 @@
           });
           let status;
           if (e.isManager) status = 'MANAGER (exempt)';
-          else if (p.isTerminationWiped) status = 'WIPED (termination)';
+          else if (p.isTerminationWiped) status = 'WIPED (Opt. Danger Zone)';
           else if ((p.outstandingDebt||0) > 0) status = 'HAS DEBT';
           else if ((p.totalDeducted||0) > 0) status = 'Penalty paid';
           else status = 'No penalty';
@@ -5199,7 +5208,7 @@
       if (isYTD && (s.termination||0) > 0) {
         const termEmps = appData.employees.filter(e => e.isTerminationRisk).sort((a,b) => a.achievementPct - b.achievementPct);
         const termData = [
-          ['⚠️ TERMINATION RISK REPORT — Below ' + thresholds.terminationYTD + '% YTD Threshold'],
+          ['⚠️ OPTIMAL DANGER ZONE REPORT — Below ' + thresholds.terminationYTD + '% YTD Threshold'],
           ['Report Date:', appData.dateRangeText, '', 'Total Flagged:', termEmps.length, '', 'Threshold:', thresholds.terminationYTD + '%'],
           [],
           ['#', 'Name', 'ID', 'Daily Target', 'Months Active', 'Output', 'Target Required', 'Shortfall', 'Achievement %', 'New Joiner', 'Total Earnings']
@@ -5209,7 +5218,7 @@
         });
         const wsTerm = XLSX.utils.aoa_to_sheet(termData);
         wsTerm['!cols'] = [{wch:4},{wch:22},{wch:10},{wch:12},{wch:14},{wch:10},{wch:14},{wch:12},{wch:14},{wch:12},{wch:14}];
-        XLSX.utils.book_append_sheet(wb, wsTerm, 'TERMINATION RISK');
+        XLSX.utils.book_append_sheet(wb, wsTerm, 'OPTIMAL DANGER ZONE');
       }
 
       // === SHEET 3: Monthly Breakdown (YTD ONLY) ===
@@ -5239,7 +5248,7 @@
               row.push('-', '-', '-');
             }
           });
-          const status = e.isManager ? '👔 MANAGER' : e.isAllGrace ? '🎓 GRACE' : e.isTerminationRisk ? '⚫ TERMINATION' : e.achievementPct>=thresholds.targetAchieved ? 'Achieved' : e.achievementPct>=thresholds.atRisk ? 'At Risk' : 'Critical';
+          const status = e.isManager ? '👔 MANAGER' : e.isAllGrace ? '🎓 GRACE' : e.isTerminationRisk ? '⚫ OPT. DANGER ZONE' : e.achievementPct>=thresholds.targetAchieved ? 'Achieved' : e.achievementPct>=thresholds.atRisk ? 'At Risk' : 'Critical';
           row.push(e.totalDone, e.isManager?'Exempt':e.targetRequired, e.isManager?'Exempt':parseFloat(e.achievementPct.toFixed(2)), status);
           mbData.push(row);
         });
