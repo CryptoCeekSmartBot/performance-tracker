@@ -210,6 +210,10 @@
               <span id="report-type-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-cyan-900/50 text-cyan-400">MTD</span>
               <span id="report-date-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-gray-300"></span>
               <span id="working-days-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-900/50 text-emerald-400"></span>
+              <div id="faster-mode-toggle" class="inline-flex rounded-full overflow-hidden border border-amber-700/60 text-[11px] font-bold tracking-wide">
+                <button id="faster-off-btn" class="px-3 py-1 transition-colors">WITHOUT FASTER</button>
+                <button id="faster-on-btn" class="px-3 py-1 transition-colors">WITH FASTER</button>
+              </div>
             </div>
             <div class="flex flex-wrap items-center gap-2">
               <button id="pdf-with-incentive-btn" class="px-3 py-1.5 rounded bg-red-600 hover:bg-red-500 text-xs font-medium">📄 PDF+₹</button>
@@ -745,6 +749,7 @@
     let rawExcelData = null;           // Most recent Excel JSON (for re-processing)
     let rawYtdMonthsData = null;       // Array of Excel JSONs (YTD mode)
     let appData = null;                // Processed report data for rendering
+    let includeFaster = false;         // Faster-mode toggle: false = WITHOUT Faster incentive, true = WITH
     let reportMode = 'mtd';
     let darkMode = true;
     let searchTerm = '';
@@ -865,17 +870,19 @@
       const excelRow = [];
       excelRow[0] = '';
       excelRow[1] = `${employee.name} (${row.employee_pr_id})`; // col B: "Name (PRxxx)"
-      excelRow[2] = row.retail_pending;                          // col C
-      excelRow[3] = 0;
-      excelRow[4] = row.prolinks_pending;                        // col E
-      excelRow[5] = row.svg_pending;                             // col F
-      excelRow[6] = row.daily_target;                            // col G
-      // Cols H+ : 31 days × 3 products
+      excelRow[2] = row.total_output || 0;                       // col C: Images Done (informational)
+      excelRow[3] = row.retail_pending;                          // col D: Retail Pending
+      excelRow[4] = row.prolinks_pending;                        // col E: Prolinks Pending
+      excelRow[5] = row.svg_pending;                             // col F: SVG Pending
+      excelRow[6] = row.faster_pending || 0;                     // col G: Faster Pending
+      excelRow[7] = row.daily_target;                            // col H: Daily Target
+      // Cols I+ : 31 days × 4 products (retail, prolinks, svg, faster)
       for (let d = 1; d <= 31; d++) {
-        const baseCol = 7 + (d - 1) * 3;
+        const baseCol = 8 + (d - 1) * 4;
         excelRow[baseCol]     = row[`day_${d}_retail`] || 0;
         excelRow[baseCol + 1] = row[`day_${d}_prolinks`] || 0;
         excelRow[baseCol + 2] = row[`day_${d}_svg`] || 0;
+        excelRow[baseCol + 3] = row[`day_${d}_faster`] || 0;
       }
       return excelRow;
     }
@@ -1134,6 +1141,8 @@
       document.getElementById('fullscreen-toggle').addEventListener('click', toggleFullscreen);
       document.getElementById('print-btn').addEventListener('click', () => window.print());
       document.getElementById('new-upload-btn').addEventListener('click', resetApp);
+      document.getElementById('faster-off-btn').addEventListener('click', () => setFasterMode(false));
+      document.getElementById('faster-on-btn').addEventListener('click', () => setFasterMode(true));
       
       // Modal openers - Upload
       document.getElementById('manage-holidays-btn-upload').addEventListener('click', () => openModal('holiday-modal'));
@@ -1466,6 +1475,30 @@
     // ================================================================
     // SECTION 13: UTILITY FUNCTIONS
     // ================================================================
+    // ================================================================
+    // FASTER MODE TOGGLE (WITHOUT / WITH Faster incentive)
+    // ================================================================
+    function updateFasterToggleUI() {
+      const offBtn = document.getElementById('faster-off-btn');
+      const onBtn = document.getElementById('faster-on-btn');
+      if (!offBtn || !onBtn) return;
+      const active = 'bg-amber-500 text-slate-900';
+      const idle = 'bg-transparent text-amber-300/70 hover:bg-amber-900/30';
+      offBtn.className = `px-3 py-1 transition-colors ${includeFaster ? idle : active}`;
+      onBtn.className  = `px-3 py-1 transition-colors ${includeFaster ? active : idle}`;
+    }
+
+    function setFasterMode(on) {
+      if (includeFaster === on) return;
+      includeFaster = on;
+      updateFasterToggleUI();
+      // Re-process the currently loaded dataset with the new mode, then re-render
+      if (appData) {
+        if (rawYtdMonthsData) processYTDData(rawYtdMonthsData);
+        else if (rawExcelData) processData(rawExcelData);
+      }
+    }
+
     function toggleTheme() {
       darkMode = !darkMode;
       document.body.classList.toggle('light-mode', !darkMode);
@@ -1532,12 +1565,13 @@
         
         // Check each day's columns for any data
         for (let day = 1; day <= maxDays; day++) {
-          const baseCol = 7 + (day - 1) * 3;
+          const baseCol = 8 + (day - 1) * 4;
           const retail = parseInt(row[baseCol]) || 0;
           const prolinks = parseInt(row[baseCol + 1]) || 0;
           const svg = parseInt(row[baseCol + 2]) || 0;
+          const faster = parseInt(row[baseCol + 3]) || 0;
           
-          if (retail > 0 || prolinks > 0 || svg > 0) {
+          if (retail > 0 || prolinks > 0 || svg > 0 || faster > 0) {
             lastDayWithData = Math.max(lastDayWithData, day);
           }
         }
@@ -1619,26 +1653,30 @@
       const row = {
         employee_pr_id: empId,
         year, month,
-        daily_target: parseInt(excelRow[6]) || 8,
-        retail_pending: parseInt(excelRow[2]) || 0,
+        daily_target: parseInt(excelRow[7]) || 8,
+        retail_pending: parseInt(excelRow[3]) || 0,
         prolinks_pending: parseInt(excelRow[4]) || 0,
         svg_pending: parseInt(excelRow[5]) || 0,
+        faster_pending: parseInt(excelRow[6]) || 0,
       };
-      let totalR = 0, totalP = 0, totalS = 0, lastDayWithData = 0;
+      let totalR = 0, totalP = 0, totalS = 0, totalF = 0, lastDayWithData = 0;
       for (let d = 1; d <= 31; d++) {
-        const baseCol = 7 + (d - 1) * 3;
+        const baseCol = 8 + (d - 1) * 4;
         const r = parseInt(excelRow[baseCol]) || 0;
         const p = parseInt(excelRow[baseCol + 1]) || 0;
         const s = parseInt(excelRow[baseCol + 2]) || 0;
+        const f = parseInt(excelRow[baseCol + 3]) || 0;
         row[`day_${d}_retail`]   = r;
         row[`day_${d}_prolinks`] = p;
         row[`day_${d}_svg`]      = s;
-        totalR += r; totalP += p; totalS += s;
-        if (r > 0 || p > 0 || s > 0) lastDayWithData = d;
+        row[`day_${d}_faster`]   = f;
+        totalR += r; totalP += p; totalS += s; totalF += f;
+        if (r > 0 || p > 0 || s > 0 || f > 0) lastDayWithData = d;
       }
       row.total_retail = totalR;
       row.total_prolinks = totalP;
       row.total_svg = totalS;
+      row.total_faster = totalF;
       row.total_output = totalR + totalP + totalS;
       row.last_day_with_data = lastDayWithData;
       // total_points / working_incentive / holiday_pay / total_earnings are computed later
@@ -1659,7 +1697,7 @@
         if (!prMatch) continue;
         const empId = prMatch[0].replace(/[()]/g, '');
         const name = decoName.replace(/\s*\(PR\d+\)/, '').trim();
-        const daily_target = parseInt(row[6]) || 8;
+        const daily_target = parseInt(row[7]) || 8;
         empRows.push({ pr_id: empId, name, daily_target });
         monthlyRows.push(excelRowToMonthlyDataRow(row, empId, year, month));
       }
@@ -1997,10 +2035,11 @@
         if (!prMatch) continue;
 
         const empId = prMatch[0].replace(/[()]/g, '');
-        const dailyTarget = parseInt(row[6]) || 8;
-        const retailPending = parseInt(row[2]) || 0;
+        const dailyTarget = parseInt(row[7]) || 8;
+        const retailPending = parseInt(row[3]) || 0;
         const prolinksPending = parseInt(row[4]) || 0;
         const svgPending = parseInt(row[5]) || 0;
+        const fasterPending = parseInt(row[6]) || 0;
 
         const effRange = getEffectiveDateRange(empId, currentYear, currentMonth, filterFromDay, filterToDay);
         const empFromDay = effRange.fromDay;
@@ -2010,17 +2049,19 @@
         const resignedInfo = getResignedInfo(empId);
 
         const dailyData = [];
-        let totalDone = 0, totalRetail = 0, totalProlinks = 0, totalSvg = 0;
+        let totalDone = 0, totalRetail = 0, totalProlinks = 0, totalSvg = 0, totalFaster = 0;
         let totalPoints = 0, totalWorkingIncentive = 0, totalHolidayPay = 0;
         const workingDayBreakdown = [];
         const holidayBreakdown = [];
 
         for (let day = 1; day <= 31; day++) {
-          const baseCol = 7 + (day - 1) * 3;
+          const baseCol = 8 + (day - 1) * 4;
           const retail = parseInt(row[baseCol]) || 0;
           const prolinks = parseInt(row[baseCol + 1]) || 0;
           const svg = parseInt(row[baseCol + 2]) || 0;
-          const total = retail + prolinks + svg;
+          const faster = parseInt(row[baseCol + 3]) || 0;
+          const fasterCounts = includeFaster ? faster : 0;
+          const total = retail + prolinks + svg + fasterCounts;
 
           const isNonWorking = isNonWorkingDay(currentYear, currentMonth, day);
           const isInFilter = day >= filterFromDay && day <= filterToDay && day <= currentDay;
@@ -2035,16 +2076,17 @@
             totalRetail += retail;
             totalProlinks += prolinks;
             totalSvg += svg;
+            totalFaster += faster;
             totalDone += total;
 
             if (isNonWorking) {
-              dayHolidayPay = calculateHolidayPay(retail, prolinks, svg, scheme);
+              dayHolidayPay = calculateHolidayPay(retail + fasterCounts, prolinks, svg, scheme);
               totalHolidayPay += dayHolidayPay;
               if (total > 0) {
                 holidayBreakdown.push({ day, retail, prolinks, svg, total, pay: dayHolidayPay, isSunday: isSunday(currentYear, currentMonth, day) });
               }
             } else {
-              dayPoints = calculatePoints(retail, prolinks, svg, scheme);
+              dayPoints = calculatePoints(retail + fasterCounts, prolinks, svg, scheme);
               totalPoints += dayPoints;
               dayIncentive = calculateDailyIncentive(dayPoints, dailyTarget, scheme);
               totalWorkingIncentive += dayIncentive.amount;
@@ -2053,7 +2095,7 @@
           }
 
           dailyData.push({
-            day, retail, prolinks, svg, total, points: dayPoints,
+            day, retail, prolinks, svg, faster, total, points: dayPoints,
             isActive, isInFilter, isInEmpRange, isNonWorking,
             isSunday: isSunday(currentYear, currentMonth, day),
             isHoliday: isHoliday(currentYear, currentMonth, day),
@@ -2082,7 +2124,7 @@
         employees.push({
           name: decoName.replace(/\s*\(PR\d+\)/, '').trim(),
           id: empId, fullName: decoName, dailyTarget, dailyData,
-          totalDone, totalRetail, totalProlinks, totalSvg, totalPoints,
+          totalDone, totalRetail, totalProlinks, totalSvg, totalFaster, totalPoints,
           targetRequired, shortfall, achievementPct, workingDays,
           targetThresholdValue, isTargetAchieved,
           isTerminationRisk: false,
@@ -2091,7 +2133,7 @@
           workingIncentive: totalWorkingIncentive, holidayPay: totalHolidayPay,
           totalEarnings: totalWorkingIncentive + totalHolidayPay,
           workingDayBreakdown, holidayBreakdown,
-          retailPending, prolinksPending, svgPending,
+          retailPending, prolinksPending, svgPending, fasterPending,
           totalPending: retailPending + prolinksPending + svgPending,
           trend, alerts,
           isNewJoiner: isRecentJoiner(empId), joinerDate: joinerInfo?.date,
@@ -2162,7 +2204,7 @@
           if (!prMatch) continue;
 
           const empId = prMatch[0].replace(/[()]/g, '');
-          const dailyTarget = parseInt(row[6]) || 8;
+          const dailyTarget = parseInt(row[7]) || 8;
 
           // === PRO-RATE NEW JOINERS: Determine effective date range ===
           const joinerInfo = getJoinerInfo(empId);
@@ -2192,22 +2234,24 @@
           }
 
           let monthOutput = 0, monthPoints = 0, monthWI = 0, monthHP = 0;
-          let monthRetail = 0, monthProlinks = 0, monthSvg = 0;
+          let monthRetail = 0, monthProlinks = 0, monthSvg = 0, monthFaster = 0;
           const effectiveWorkingDays = empActiveThisMonth ? getWorkingDaysInRange(currentYear, currentMonth, effFromDay, effToDay) : 0;
 
           if (empActiveThisMonth) {
             for (let day = effFromDay; day <= effToDay; day++) {
-              const baseCol = 7 + (day - 1) * 3;
+              const baseCol = 8 + (day - 1) * 4;
               const r = parseInt(row[baseCol]) || 0;
               const p = parseInt(row[baseCol + 1]) || 0;
               const s = parseInt(row[baseCol + 2]) || 0;
-              monthRetail += r; monthProlinks += p; monthSvg += s;
-              monthOutput += r + p + s;
+              const f = parseInt(row[baseCol + 3]) || 0;
+              const fc = includeFaster ? f : 0;
+              monthRetail += r; monthProlinks += p; monthSvg += s; monthFaster += f;
+              monthOutput += r + p + s + fc;
 
               if (isNonWorkingDay(currentYear, currentMonth, day)) {
-                monthHP += calculateHolidayPay(r, p, s, scheme);
+                monthHP += calculateHolidayPay(r + fc, p, s, scheme);
               } else {
-                const pts = calculatePoints(r, p, s, scheme);
+                const pts = calculatePoints(r + fc, p, s, scheme);
                 monthPoints += pts;
                 monthWI += calculateDailyIncentive(pts, dailyTarget, scheme).amount;
               }
@@ -2223,7 +2267,7 @@
               name: decoName.replace(/\s*\(PR\d+\)/, '').trim(),
               id: empId, fullName: decoName, dailyTarget,
               totalDone: 0, totalPoints: 0, targetRequired: 0, workingDays: 0,
-              totalRetail: 0, totalProlinks: 0, totalSvg: 0,
+              totalRetail: 0, totalProlinks: 0, totalSvg: 0, totalFaster: 0,
               workingIncentive: 0, holidayPay: 0, months: [],
               activeMonthsCount: 0,
               // Non-manager accumulators (for legacy/shortfall calc)
@@ -2247,6 +2291,7 @@
           emp.totalRetail += monthRetail;
           emp.totalProlinks += monthProlinks;
           emp.totalSvg += monthSvg;
+          emp.totalFaster += monthFaster;
           emp.workingIncentive += monthWI;
           emp.holidayPay += monthHP;
           if (empActiveThisMonth && effectiveWorkingDays > 0) emp.activeMonthsCount++;
@@ -2273,7 +2318,7 @@
             label: `${getMonthName(currentMonth)} ${currentYear}`,
             shortLabel: getMonthName(currentMonth),
             output: monthOutput, target: monthTarget, points: monthPoints,
-            retail: monthRetail, prolinks: monthProlinks, svg: monthSvg,
+            retail: monthRetail, prolinks: monthProlinks, svg: monthSvg, faster: monthFaster,
             workingIncentive: monthWI, holidayPay: monthHP,
             workingDays: effectiveWorkingDays,
             achievementPct: monthPct,
@@ -2714,6 +2759,7 @@
       
       document.getElementById('report-date-badge').textContent = '📅 ' + appData.dateRangeText;
       document.getElementById('working-days-badge').textContent = '✅ ' + appData.workingDays + ' Working Days';
+      updateFasterToggleUI();
       
       if (appData.isYTD) {
         // YTD Mode: Hide MTD-only sections, show YTD sections
@@ -2993,7 +3039,7 @@
 
             if (day.isNonWorking) {
               if (day.total > 0) {
-                cells.push(`<td class="px-1 py-1 text-center border-b border-slate-700" title="Day ${d} (H): R${day.retail} P${day.prolinks} S${day.svg} = ₹${day.holidayPay}"><div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-[10px] font-bold text-white cell-holiday">${day.total}f</div></td>`);
+                cells.push(`<td class="px-1 py-1 text-center border-b border-slate-700" title="Day ${d} (H): R${day.retail} P${day.prolinks} S${day.svg} F${day.faster} = ₹${day.holidayPay}"><div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-[10px] font-bold text-white cell-holiday">${day.total}f</div></td>`);
               } else {
                 cells.push(`<td class="px-1 py-1 text-center border-b border-slate-700"><div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-xs font-bold text-purple-300 bg-purple-900/40">H</div></td>`);
               }
@@ -3001,7 +3047,7 @@
               cells.push(`<td class="px-1 py-1 text-center border-b border-slate-700"><div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-xs text-gray-600">-</div></td>`);
             } else {
               const cc = getPointColor(day.points, emp.dailyTarget, scheme);
-              cells.push(`<td class="px-1 py-1 text-center border-b border-slate-700" title="Day ${d}: R${day.retail} P${day.prolinks} S${day.svg} = ${day.points}pts${day.incentive.amount>0?' ₹'+day.incentive.amount:''}"><div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-[10px] font-medium text-white ${cc}">${day.points}p</div></td>`);
+              cells.push(`<td class="px-1 py-1 text-center border-b border-slate-700" title="Day ${d}: R${day.retail} P${day.prolinks} S${day.svg} F${day.faster} = ${day.points}pts${day.incentive.amount>0?' ₹'+day.incentive.amount:''}"><div class="w-7 h-7 mx-auto rounded flex items-center justify-center text-[10px] font-medium text-white ${cc}">${day.points}p</div></td>`);
             }
           }
 
@@ -3998,7 +4044,7 @@
         if (wb.length > 0) {
           document.getElementById('popup-working-breakdown').innerHTML = wb.map(d => `
             <div class="flex items-center justify-between p-2 rounded ${d.amount>0?'bg-emerald-900/20':'bg-slate-800'}">
-              <div class="flex items-center gap-3"><span class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs font-bold">${d.day}</span><span class="text-xs text-gray-400">R${d.retail} P${d.prolinks} S${d.svg}</span></div>
+              <div class="flex items-center gap-3"><span class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs font-bold">${d.day}</span><span class="text-xs text-gray-400">R${d.retail} P${d.prolinks} S${d.svg} F${d.faster||0}</span></div>
               <div class="flex items-center gap-4"><span class="text-purple-400 font-medium">${d.points}pts</span><span class="text-xs text-gray-500">× ₹${d.rate}</span><span class="font-bold ${d.amount>0?'text-emerald-400':'text-gray-500'}">₹${d.amount}</span></div>
             </div>
           `).join('');
@@ -4011,7 +4057,7 @@
         if (hb.length > 0) {
           document.getElementById('popup-holiday-breakdown').innerHTML = hb.map(d => `
             <div class="flex items-center justify-between p-2 rounded bg-purple-900/20">
-              <div class="flex items-center gap-3"><span class="w-8 h-8 rounded bg-purple-700/50 flex items-center justify-center text-xs font-bold">${d.day}</span><span class="text-xs text-gray-400">${d.isSunday?'Sunday':'Holiday'}: R${d.retail} P${d.prolinks} S${d.svg}</span></div>
+              <div class="flex items-center gap-3"><span class="w-8 h-8 rounded bg-purple-700/50 flex items-center justify-center text-xs font-bold">${d.day}</span><span class="text-xs text-gray-400">${d.isSunday?'Sunday':'Holiday'}: R${d.retail} P${d.prolinks} S${d.svg} F${d.faster||0}</span></div>
               <div class="flex items-center gap-2"><span class="text-xs text-gray-400">${d.total} files</span><span class="font-bold text-purple-400">₹${d.pay}</span></div>
             </div>
           `).join('');
@@ -5260,7 +5306,7 @@
         XLSX.utils.book_append_sheet(wb, wsMonthly, 'Monthly Breakdown');
       }
 
-      XLSX.writeFile(wb, (isYTD?'YTD_':'MTD_') + 'performance_report_' + appData.dateRangeText.replace(/[\s→]/g, '_').replace(/:/g, '') + '.xlsx');
+      XLSX.writeFile(wb, (isYTD?'YTD_':'MTD_') + 'performance_report_' + appData.dateRangeText.replace(/[\s→]/g, '_').replace(/:/g, '') + (includeFaster ? '_WithFaster' : '_WithoutFaster') + '.xlsx');
     }
 
     // ================================================================
