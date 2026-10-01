@@ -210,7 +210,7 @@
               <span id="report-type-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-cyan-900/50 text-cyan-400">MTD</span>
               <span id="report-date-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-gray-300"></span>
               <span id="working-days-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-900/50 text-emerald-400"></span>
-              <div id="faster-mode-toggle" class="inline-flex rounded-full overflow-hidden border border-amber-700/60 text-[11px] font-bold tracking-wide">
+              <div id="faster-mode-toggle" title="Changes output & achievement % only. Incentive and Champion never include Faster." class="inline-flex rounded-full overflow-hidden border border-amber-700/60 text-[11px] font-bold tracking-wide">
                 <button id="faster-off-btn" class="px-3 py-1 transition-colors">WITHOUT FASTER</button>
                 <button id="faster-on-btn" class="px-3 py-1 transition-colors">WITH FASTER</button>
               </div>
@@ -429,7 +429,7 @@
             <div class="text-xs text-purple-300/80 flex items-start gap-2">
               <span>ℹ️</span>
               <div>
-                <strong>How it works:</strong> Employees marked as managers are exempt from target achievement %, Optimal Danger Zone, and team average calculations from their <strong>Effective Date</strong> onwards. Months <em>before</em> the effective date are still counted normally. Their output & incentive earnings are always calculated.
+                <strong>How it works:</strong> Employees marked as managers are exempt from target achievement %, Optimal Danger Zone, and team average calculations from their <strong>Effective Date</strong> onwards. Months <em>before</em> the effective date are still counted normally. Their output is still shown, but they earn <strong>no incentive and no holiday pay</strong> and are excluded from Champion &amp; Top 5 from their Effective Date onwards.
               </div>
             </div>
           </div>
@@ -749,7 +749,7 @@
     let rawExcelData = null;           // Most recent Excel JSON (for re-processing)
     let rawYtdMonthsData = null;       // Array of Excel JSONs (YTD mode)
     let appData = null;                // Processed report data for rendering
-    let includeFaster = false;         // Faster-mode toggle: false = WITHOUT Faster incentive, true = WITH
+    let includeFaster = false;         // Faster-mode toggle: affects output count & achievement % ONLY. Incentive, holiday pay & champion ranking NEVER include Faster.
     let reportMode = 'mtd';
     let darkMode = true;
     let searchTerm = '';
@@ -1266,8 +1266,15 @@
     }
 
     // === MANAGER HELPERS ===
+    // Built-in managers: always treated as managers, even if missing from the saved Manager list.
+    // Effective from 2000-01-01 = exempt in every month.
+    const BUILT_IN_MANAGERS = [
+      { id: 'PR002', name: 'Anupurba Hazra', date: '2000-01-01', note: 'Manager (built-in)' }
+    ];
     function getManagerInfo(id) {
-      return managers.find(m => m.id.toUpperCase() === id.toUpperCase());
+      const key = String(id || '').toUpperCase();
+      return managers.find(m => m.id.toUpperCase() === key)
+          || BUILT_IN_MANAGERS.find(m => m.id.toUpperCase() === key);
     }
 
     // Check if employee was a manager during a specific month (effective date ≤ end of that month)
@@ -1278,6 +1285,12 @@
       // Manager if their effective date falls on or before the last day of the target month
       const lastOfMonth = new Date(year, month, 0); // month is 1-indexed here
       return effDate <= lastOfMonth;
+    }
+
+    // Champion / Top 5 ranking: most files done (Retail + Prolinks + SVG, Faster excluded).
+    // Tie-break: higher achievement %.
+    function rankByFiles(list) {
+      return [...list].sort((a, b) => (b.filesDone - a.filesDone) || (b.achievementPct - a.achievementPct));
     }
 
     // Check if employee was a manager on a specific day
@@ -2072,6 +2085,9 @@
           let dayIncentive = { rate: 0, amount: 0, slab: 'none' };
           let dayHolidayPay = 0;
 
+          // Managers (from Manager list, from their effective date) earn NO incentive or holiday pay
+          const isMgrDay = wasManagerOnDay(empId, currentYear, currentMonth, day);
+
           if (isActive && isInFilter && isInEmpRange) {
             totalRetail += retail;
             totalProlinks += prolinks;
@@ -2080,15 +2096,15 @@
             totalDone += total;
 
             if (isNonWorking) {
-              dayHolidayPay = calculateHolidayPay(retail + fasterCounts, prolinks, svg, scheme);
+              dayHolidayPay = isMgrDay ? 0 : calculateHolidayPay(retail, prolinks, svg, scheme);   // Faster (AI) never paid
               totalHolidayPay += dayHolidayPay;
               if (total > 0) {
                 holidayBreakdown.push({ day, retail, prolinks, svg, total, pay: dayHolidayPay, isSunday: isSunday(currentYear, currentMonth, day) });
               }
             } else {
-              dayPoints = calculatePoints(retail + fasterCounts, prolinks, svg, scheme);
+              dayPoints = calculatePoints(retail, prolinks, svg, scheme);   // Faster (AI) never earns points/incentive
               totalPoints += dayPoints;
-              dayIncentive = calculateDailyIncentive(dayPoints, dailyTarget, scheme);
+              dayIncentive = isMgrDay ? { rate: 0, amount: 0, slab: 'none' } : calculateDailyIncentive(dayPoints, dailyTarget, scheme);
               totalWorkingIncentive += dayIncentive.amount;
               workingDayBreakdown.push({ day, retail, prolinks, svg, total, points: dayPoints, rate: dayIncentive.rate, amount: dayIncentive.amount, slab: dayIncentive.slab });
             }
@@ -2125,6 +2141,7 @@
           name: decoName.replace(/\s*\(PR\d+\)/, '').trim(),
           id: empId, fullName: decoName, dailyTarget, dailyData,
           totalDone, totalRetail, totalProlinks, totalSvg, totalFaster, totalPoints,
+          filesDone: totalRetail + totalProlinks + totalSvg,   // ranking count — Faster (AI) never included
           targetRequired, shortfall, achievementPct, workingDays,
           targetThresholdValue, isTargetAchieved,
           isTerminationRisk: false,
@@ -2143,7 +2160,8 @@
         });
       }
 
-      const sorted = [...employees].sort((a, b) => b.achievementPct - a.achievementPct);
+      // Champion & Top 5: highest files done (Faster excluded), managers excluded; tie → higher achievement %
+      const sorted = rankByFiles(employees.filter(e => !e.isManager));
       const globalWD = getWorkingDaysInRange(currentYear, currentMonth, filterFromDay, filterToDay);
 
       appData = {
@@ -2247,13 +2265,14 @@
               const fc = includeFaster ? f : 0;
               monthRetail += r; monthProlinks += p; monthSvg += s; monthFaster += f;
               monthOutput += r + p + s + fc;
+              const isMgrDay = wasManagerOnDay(empId, currentYear, currentMonth, day);
 
               if (isNonWorkingDay(currentYear, currentMonth, day)) {
-                monthHP += calculateHolidayPay(r + fc, p, s, scheme);
+                if (!isMgrDay) monthHP += calculateHolidayPay(r, p, s, scheme);   // Faster (AI) never paid
               } else {
-                const pts = calculatePoints(r + fc, p, s, scheme);
+                const pts = calculatePoints(r, p, s, scheme);   // Faster (AI) never earns points/incentive
                 monthPoints += pts;
-                monthWI += calculateDailyIncentive(pts, dailyTarget, scheme).amount;
+                if (!isMgrDay) monthWI += calculateDailyIncentive(pts, dailyTarget, scheme).amount;
               }
             }
           }
@@ -2558,6 +2577,7 @@
           penalty: penaltyData,
           netTotal,
           totalEarnings: emp.workingIncentive + emp.holidayPay,
+          filesDone: emp.totalRetail + emp.totalProlinks + emp.totalSvg,   // ranking count — Faster (AI) never included
           trend: ytdTrend, alerts: [],
           isNewJoiner,
           joinerDate: _joinerInfoYTD?.date,
@@ -2570,7 +2590,10 @@
       // Exclude managers from ranking (they're leadership, not competing)
       // Exclude managers AND all-grace trainees from ranking (neither are under performance review)
       const nonManagers = employees.filter(e => !e.isManager && !e.isAllGrace);
-      const sorted = [...nonManagers].sort((a, b) => b.achievementPct - a.achievementPct);
+      // Champion & Top 5: highest files done (Faster excluded); tie → higher achievement %
+      const sorted = rankByFiles(nonManagers);
+      // Bottom 5 ("Needs Attention") stays on achievement %
+      const sortedByAch = [...nonManagers].sort((a, b) => b.achievementPct - a.achievementPct);
       const totalWD = employees.reduce((s, e) => s + e.workingDays, 0);
       const avgWD = employees.length > 0 ? Math.round(totalWD / employees.length) : 0;
 
@@ -2583,7 +2606,7 @@
         dateRangeText: `${monthsMetadata.length} Months: ${monthsMetadata.map(m=>m.shortLabel).join(' → ')}`,
         workingDays: avgWD,
         leaderboard: sorted.slice(0, 5),
-        bottom5: [...sorted].reverse().slice(0, 5),
+        bottom5: [...sortedByAch].reverse().slice(0, 5),
         champion: sorted[0],
         teamStats: calcTeamStats(employees, avgWD, ytdScheme),
         isYTD: true
@@ -2828,7 +2851,7 @@
       document.getElementById('champion-card').innerHTML = `
         <div class="flex items-center gap-2 mb-4"><span class="text-3xl">🏆</span><div><div class="text-xs uppercase text-gray-400">Champion</div><div class="text-lg font-bold">${c?.name||'TBD'}</div></div></div>
         ${c ? `<div class="grid grid-cols-2 gap-4 text-sm">
-          <div><div class="text-gray-400">Output</div><div class="font-bold text-lg text-cyan-400">${c.totalDone}</div></div>
+          <div><div class="text-gray-400">Files Done</div><div class="font-bold text-lg text-cyan-400">${c.filesDone}</div><div class="text-[10px] text-gray-500">excl. Faster</div></div>
           <div><div class="text-gray-400">Achievement</div><div class="font-bold text-lg text-emerald-400">${c.achievementPct.toFixed(1)}%</div></div>
           <div><div class="text-gray-400">Points</div><div class="font-bold text-purple-400">${c.totalPoints}</div></div>
           <div><div class="text-gray-400">Earnings</div><div class="font-bold text-amber-400">₹${c.totalEarnings}</div></div>
@@ -2840,11 +2863,11 @@
       const top5 = appData.leaderboard;
       const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
       document.getElementById('leaderboard-card').innerHTML = `
-        <div class="flex items-center gap-2 mb-4"><span class="text-xl">🎖️</span><div class="font-semibold">Top 5 Performers</div></div>
+        <div class="flex items-center gap-2 mb-4"><span class="text-xl">🎖️</span><div class="font-semibold">Top 5 Performers</div><div class="text-[10px] text-gray-500">by files done (excl. Faster)</div></div>
         <div class="grid grid-cols-1 sm:grid-cols-5 gap-2">
           ${top5.map((e,i) => `<div class="flex items-center gap-2 p-2 rounded-lg bg-slate-800 cursor-pointer hover:bg-slate-700" onclick="showEmployeePopup('${e.id}')">
             <span class="text-lg">${medals[i]}</span>
-            <div class="min-w-0 flex-1"><div class="font-medium text-sm truncate">${e.name}</div><div class="text-xs text-gray-400">${e.achievementPct.toFixed(0)}% • ₹${e.totalEarnings}</div></div>
+            <div class="min-w-0 flex-1"><div class="font-medium text-sm truncate">${e.name}</div><div class="text-xs text-gray-400">${e.filesDone} files • ${e.achievementPct.toFixed(0)}%</div></div>
           </div>`).join('')}
         </div>
       `;
@@ -3416,19 +3439,20 @@
       const top5 = appData.leaderboard || [];
       const bottom5 = appData.bottom5 || [];
       const maxAch = Math.max(...appData.employees.map(e=>e.achievementPct), 100);
+      const maxFiles = Math.max(...top5.map(e=>e.filesDone || 0), 1);
       const topBottomChart = `
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
           <div class="font-semibold mb-3 flex items-center gap-2"><span>🏆</span><span>Top 5 vs Bottom 5</span></div>
           <div class="space-y-1.5">
-            <div class="text-[10px] uppercase text-emerald-400 font-semibold">🥇 Top Performers</div>
+            <div class="text-[10px] uppercase text-emerald-400 font-semibold">🥇 Top Performers (files done, excl. Faster)</div>
             ${top5.map((e,i) => `
               <div class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-800/50 rounded px-1 py-0.5" onclick="showEmployeePopup('${e.id}')">
                 <span class="w-4 text-gray-400">${i+1}</span>
                 <span class="w-20 truncate text-gray-200">${e.name}</span>
                 <div class="flex-1 h-3 bg-slate-800 rounded overflow-hidden">
-                  <div class="h-full bg-gradient-to-r from-emerald-600 to-emerald-400" style="width:${Math.min((e.achievementPct/maxAch)*100, 100)}%"></div>
+                  <div class="h-full bg-gradient-to-r from-emerald-600 to-emerald-400" style="width:${Math.min((e.filesDone/maxFiles)*100, 100)}%"></div>
                 </div>
-                <span class="w-12 text-right font-bold text-emerald-400">${e.achievementPct.toFixed(0)}%</span>
+                <span class="w-12 text-right font-bold text-emerald-400">${e.filesDone}</span>
               </div>
             `).join('')}
             <div class="border-t border-slate-700 my-2"></div>
